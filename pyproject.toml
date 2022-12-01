@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "fimo"
+version = "0.1.0"
+description = "Finanzmonitoring"
+authors = ["Martin Puttke <martinstefanputtke@posteo.de>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = "^1.10.2"
+
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^6.0.0"
+black = "^22.10.0"
+isort = "^5.10.1"
+autoflake = "^2.0.0"
+ipython = "^8.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
