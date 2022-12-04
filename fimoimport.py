@@ -1,9 +1,38 @@
 from pathlib import Path
+import csv
 import glob
+
+from enum import Enum
 
 LABEL_HEADING = "KPZ_Label"
 COLUMN_SEP = ";"
-LABEL_RULES = {"VERBRAUCHERGEM": "DAILY"}
+
+
+class Label(Enum):
+    DAILY = "DAILY"
+    WOHNEN = "WOHNEN"
+
+
+LABEL_RULES = {
+    "VERBRAUCHERGEM": Label.DAILY,
+    "Verbrauchergem": Label.DAILY,
+    "REWE": Label.DAILY,
+    "LIDL": Label.DAILY,
+    "NETTO": Label.DAILY,
+    "ROSSMANN": Label.DAILY,
+    "DREWAG": Label.WOHNEN,
+    "POPIMOB": Label.WOHNEN,
+    "Telefonica": Label.WOHNEN,
+    "Rundfunk": Label.WOHNEN,
+}
+
+LABEL_ORDER = [
+    LABEL_HEADING,
+    "Buchungstag",
+    "Auftraggeber / Begünstigter",
+    "Verwendungszweck",
+    "Betrag (EUR)",
+]
 
 
 def _remove_stuff_before_header(lines):
@@ -13,34 +42,6 @@ def _remove_stuff_before_header(lines):
             break
 
     del lines[: 15 - i + 1]
-
-
-def _add_label_column(lines):
-    output = []
-    output.append(lines[0][:-1] + LABEL_HEADING + COLUMN_SEP + lines[0][-1])
-
-    for line in lines[1:]:
-        output.append(line[:-1] + COLUMN_SEP + line[-1])
-
-    return output
-
-
-def _add_label_by_occurence(lines, label, word):
-    output = []
-    output.append(lines[0])
-
-    for line in lines[1:]:
-        if word in line:
-            if line[-3] == ";":
-                insertion = label
-            else:
-                insertion = "," + label
-
-            line = line[:-2] + insertion + line[-2:]
-
-        output.append(line)
-
-    return output
 
 
 class FimoImporter:
@@ -53,15 +54,32 @@ class FimoImporter:
             self._import_file(Path(filepath))
 
     def _import_file(self, filepath: Path):
-        with open(filepath, encoding="iso-8859-1") as f:
+        with open(filepath, "r", encoding="iso-8859-1") as f:
             lines = f.readlines()
 
         _remove_stuff_before_header(lines)
-        lines = _add_label_column(lines)
-        for word, label in LABEL_RULES.items():
-            lines = _add_label_by_occurence(lines, label, word)
+
+        reader = csv.DictReader(lines, delimiter=";", quotechar='"')
+
+        fieldnames_copy = []
+        fieldnames_copy.extend(reader.fieldnames)
+
+        sortedfieldnames = [LABEL_HEADING]
+        for l in LABEL_ORDER:
+            if l in fieldnames_copy:
+                sortedfieldnames.append(l)
+                del l
+        sortedfieldnames.extend(fieldnames_copy)
 
         outfilepath = self._srcpath.joinpath("labeled", filepath.name)
-        print(outfilepath)
         with open(outfilepath, "w") as f:
-            f.writelines(lines)
+            writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
+            writer.writeheader()
+            for row in reader:
+                labels = [
+                    label.value
+                    for word, label in LABEL_RULES.items()
+                    if word in ";".join(row.values())
+                ]
+                row[LABEL_HEADING] = ",".join(labels)
+                writer.writerow(row)
