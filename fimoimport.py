@@ -1,7 +1,9 @@
 from pathlib import Path
+import glob
 
 LABEL_HEADING = "KPZ_Label"
 COLUMN_SEP = ";"
+LABEL_RULES = {"VERBRAUCHERGEM": "DAILY"}
 
 
 def _remove_stuff_before_header(lines):
@@ -23,15 +25,43 @@ def _add_label_column(lines):
     return output
 
 
+def _add_label_by_occurence(lines, label, word):
+    output = []
+    output.append(lines[0])
+
+    for line in lines[1:]:
+        if word in line:
+            if line[-3] == ";":
+                insertion = label
+            else:
+                insertion = "," + label
+
+            line = line[:-2] + insertion + line[-2:]
+
+        output.append(line)
+
+    return output
+
+
 class FimoImporter:
     def __init__(self, srcpath: Path):
-        self._srcpath = srcpath
+        self._srcpath = Path(srcpath)
 
     def do_import(self):
-        with open(self._srcpath, encoding="iso-8859-1") as f:
+        files = glob.glob(str(self._srcpath) + "/*.csv")
+        for filepath in files:
+            self._import_file(Path(filepath))
+
+    def _import_file(self, filepath: Path):
+        with open(filepath, encoding="iso-8859-1") as f:
             lines = f.readlines()
 
-            _remove_stuff_before_header(lines)
-            lines = _add_label_column(lines)
+        _remove_stuff_before_header(lines)
+        lines = _add_label_column(lines)
+        for word, label in LABEL_RULES.items():
+            lines = _add_label_by_occurence(lines, label, word)
 
-            self._lines = lines
+        outfilepath = self._srcpath.joinpath("labeled", filepath.name)
+        print(outfilepath)
+        with open(outfilepath, "w") as f:
+            f.writelines(lines)
