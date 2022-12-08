@@ -6,14 +6,17 @@ from pathlib import Path
 import csv
 import glob
 
+
 class User(Enum):
     MARTIN = "MARTIN"
     LIANE = "LIANE"
+
 
 class Label(Enum):
     DAILY = "DAILY"
     COMMON_PERIODIC = "COMMON_PERIODIC"
     COMMON_ONETIME = "COMMON_ONETIME"
+
 
 class KontoRecord(BaseModel):
     """Repräsentiert einen Eintrag aus einem Kontoauszug oder einen manuellen Finanzvorgang."""
@@ -27,8 +30,8 @@ class KontoRecord(BaseModel):
     purpose: str
     labels: List[Label]
 
-class DKBImporter:
 
+class DKBImporter:
     def __init__(self, srcpath: Path):
         self._srcpath = srcpath
 
@@ -41,24 +44,30 @@ class DKBImporter:
         return records
 
     def _import_file(self, filepath: Path) -> List[KontoRecord]:
-        with open(filepath, "r", encoding='iso-8859-1') as f:
+        with open(filepath, "r", encoding="iso-8859-1") as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
-            if line.startswith(f'{self.FIRST_HEADING}'):
+            if line.startswith(f"{self.FIRST_HEADING}"):
                 break
         del lines[:i]
 
-        reader = csv.DictReader(lines, delimiter=';', quotechar='"')
+        reader = csv.DictReader(lines, delimiter=";", quotechar='"')
         records = []
 
         for row in reader:
-            records.append(KontoRecord(date = datetime.strptime(row[self.HEADING_DATE], '%d.%m.%Y'),
-                                       spender = self.SPENDER,
-                                       client = None,
-                                       value = int(row[self.HEADING_VALUE].replace(",","").replace(".", "")),
-                                       receiver = row[self.HEADING_RECEIVER],
-                                       purpose = row[self.HEADING_PURPOSE],
-                                       labels = []))
+            records.append(
+                KontoRecord(
+                    date=datetime.strptime(row[self.HEADING_DATE], "%d.%m.%Y"),
+                    spender=self.SPENDER,
+                    client=None,
+                    value=int(
+                        row[self.HEADING_VALUE].replace(",", "").replace(".", "")
+                    ),
+                    receiver=row[self.HEADING_RECEIVER],
+                    purpose=row[self.HEADING_PURPOSE],
+                    labels=[],
+                )
+            )
 
         return records
 
@@ -114,11 +123,12 @@ class IngDiBaImporter(DKBImporter):
 
 class IngDiBaLianeImporter(IngDiBaImporter):
     def __init__(self):
-        super().__init__("/home/kapuze/Nextcloud/matlantis_ocloud/LöwiMiez/Finanzen/Miez/")
+        super().__init__(
+            "/home/kapuze/Nextcloud/matlantis_ocloud/LöwiMiez/Finanzen/Miez/"
+        )
 
 
 class Monitor:
-
     def __init__(self):
         self._records = []
 
@@ -127,11 +137,14 @@ class Monitor:
 
         print(self._records)
 
+
 def test_import_martin_dkb_konto():
     assert len(DKBKontoMartinImporter().do_import())
 
+
 def test_import_martin_dkb_visa():
     assert len(DKBVisaMartinImporter().do_import())
+
 
 def test_import_liane_ingdiba():
     assert len(IngDiBaLianeImporter().do_import())
