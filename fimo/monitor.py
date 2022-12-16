@@ -1,8 +1,49 @@
-from . import importer
+from fimo import importer
 from typing import List, Optional
+from enum import Enum
+
+SKIP_LABEL = "SKIP"
 
 
-def org_print(data: List[importer.AccountRecord]):
+class SortField(Enum):
+    SPENDER = 0
+    DATE = 1
+    VALUE = 2
+    RECEIVER = 3
+    PURPOSE = 4
+
+
+def _truncate_string(str_input: str, max_length: Optional[int]):
+    str_end = "..."
+    length = len(str_input)
+    if max_length and length > max_length:
+        return str_input[: max_length - len(str_end)] + str_end
+
+    return str_input
+
+
+def org_print(
+    data: List[importer.AccountRecord],
+    truncate: Optional[int] = 60,
+    sort_field: Optional[SortField] = None,
+    reverse: bool = False,
+):
+    def keyf(x):
+        if sort_field == SortField.SPENDER:
+            result = x[0]
+        elif sort_field == SortField.DATE:
+            result = x[1]
+        elif sort_field == SortField.VALUE:
+            result = x[2]
+        elif sort_field == SortField.RECEIVER:
+            result = x[3]
+        elif sort_field == SortField.PURPOSE:
+            result = x[4]
+        else:
+            raise ValueError("Unknown Sort Field")
+
+        return result
+
     out = []
     for d in data:
         out.append(
@@ -10,11 +51,13 @@ def org_print(data: List[importer.AccountRecord]):
                 d.account.spender.value,
                 d.date.strftime("%Y-%m-%d"),
                 d.value / 100,
-                d.receiver,
-                d.purpose,
+                _truncate_string(d.receiver, truncate),
+                _truncate_string(d.purpose, truncate),
             ]
         )
 
+    if sort_field:
+        out = sorted(out, key=keyf, reverse=reverse)
     return out
 
 
@@ -36,7 +79,12 @@ class Monitor:
     def catlist(
         self, label: str, spender: Optional = None
     ) -> List[importer.AccountRecord]:
-        data = self.data()
+        def check_spender(d: importer.AccountRecord):
+            return spender is None or d.spender == spender
 
-        catdata = [d for d in data if label in d.labels]
+        catdata = [
+            d
+            for d in self.data()
+            if label in d.labels and not SKIP_LABEL in d.labels and check_spender(d)
+        ]
         return catdata
