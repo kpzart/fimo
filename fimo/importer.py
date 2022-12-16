@@ -2,7 +2,7 @@ import csv
 import re
 import glob
 from typing import List, Dict
-from datetime import datetime
+import datetime
 from enum import Enum
 
 from pydantic import BaseModel
@@ -75,7 +75,7 @@ ACCOUNTS = [
 class AccountRecord(BaseModel):
     """Repräsentiert einen Eintrag aus einem Kontoauszug oder einen manuellen Finanzvorgang."""
     account: Account
-    date: datetime
+    date: datetime.date
     spender: User
     value: int
     receiver: str
@@ -183,7 +183,7 @@ class FileImporter:
         return [ AccountRecord(
             account = self._account_importer._account,
             spender = self._account_importer._account.spender,
-            date = datetime.strptime(row[self._account_importer._account.heading_date], "%d.%m.%Y"),
+            date = datetime.datetime.strptime(row[self._account_importer._account.heading_date], "%d.%m.%Y").date(),
             value = int(
                         row[self._account_importer._account.heading_value].replace(",", "").replace(".", "")
                     ),

@@ -1,6 +1,7 @@
 from fimo import importer
 from typing import List, Optional
 from enum import Enum
+from datetime import date
 
 SKIP_LABEL = "SKIP"
 
@@ -77,7 +78,11 @@ class Monitor:
         return data
 
     def catlist(
-        self, label: str, spender: Optional = None
+        self,
+        label: str,
+        spender: Optional = None,
+        startdate: date = date(2000, 1, 31),
+        enddate: date = date(2050, 1, 31),
     ) -> List[importer.AccountRecord]:
         def check_spender(d: importer.AccountRecord):
             return spender is None or d.spender == spender
@@ -85,6 +90,10 @@ class Monitor:
         catdata = [
             d
             for d in self.data()
-            if label in d.labels and not SKIP_LABEL in d.labels and check_spender(d)
+            if label in d.labels
+            and not SKIP_LABEL in d.labels
+            and check_spender(d)
+            and d.date > startdate
+            and d.date < enddate
         ]
         return catdata
