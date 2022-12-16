@@ -1,7 +1,8 @@
 from fimo import importer
 from typing import List, Optional, Tuple
 from enum import Enum
-from datetime import date
+from datetime import date, timedelta
+from dateutil import rrule
 
 SKIP_LABEL = "SKIP"
 
@@ -53,6 +54,7 @@ def sort_records(
 def org_print(
     data: List[importer.AccountRecord],
     truncate: Optional[int] = 60,
+    invert: bool = False,
 ):
     out = []
     for d in data:
@@ -60,7 +62,7 @@ def org_print(
             [
                 d.account.spender.value,
                 d.date.strftime("%Y-%m-%d"),
-                d.value / 100,
+                (1 - 2 * int(invert)) * d.value / 100,
                 _truncate_string(d.receiver, truncate),
                 _truncate_string(d.purpose, truncate),
             ]
@@ -105,12 +107,54 @@ class Monitor:
         ]
         return catdata
 
+    def sum(
+        self,
+        label: Optional[str] = None,
+        spender: Optional = None,
+        startdate: date = date(2000, 1, 31),
+        enddate: date = date(2050, 1, 31),
+        invert: bool = False,
+    ) -> float:
+        catdata = self.catlist(label, spender, startdate, enddate)
+        return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
+
+    def monthlysumplotdata(
+        self,
+        label: Optional[str] = None,
+        spender: Optional = None,
+        startdate: date = date(2000, 1, 31),
+        enddate: date = date(2050, 1, 31),
+        invert: bool = False,
+    ) -> Tuple[List[date], List[float]]:
+        allcatdata = sort_records(self.catlist(label, spender), field=SortField.DATE)
+        startdate = startdate if startdate > allcatdata[0].date else allcatdata[0].date
+        enddate = enddate if enddate < allcatdata[-1].date else allcatdata[-1].date
+
+        stepdays = list(rrule.rrule(rrule.MONTHLY, dtstart=startdate, until=enddate))
+
+        if len(stepdays) < 1:
+            raise Exception("Date range must be at least one month")
+
+        catsums = []
+        plotdays = []
+        for i in range(len(stepdays) - 1):
+            catdata = self.catlist(
+                label, spender, stepdays[i].date(), stepdays[i + 1].date()
+            )
+            catsums.append(
+                (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
+            )
+            plotdays.append((stepdays[i + 1] - timedelta(days=1)).strftime("%Y-%m"))
+
+        return plotdays, catsums
+
     def catsumplotdata(
         self,
         label: Optional[str] = None,
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
+        invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
         catdata = self.catlist(label, spender, startdate, enddate)
 
@@ -123,6 +167,6 @@ class Monitor:
             if len(sums):
                 sum = sums[-1]
 
-            sums.append(sum + d.value / 100)
+            sums.append((1 - 2 * int(invert)) * (sum + d.value / 100))
 
         return (dates, sums)
