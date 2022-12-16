@@ -1,5 +1,5 @@
 from fimo import importer
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from enum import Enum
 from datetime import date
 
@@ -23,28 +23,37 @@ def _truncate_string(str_input: str, max_length: Optional[int]):
     return str_input
 
 
-def org_print(
+def sort_records(
     data: List[importer.AccountRecord],
-    truncate: Optional[int] = 60,
-    sort_field: Optional[SortField] = None,
+    field: Optional[SortField] = None,
     reverse: bool = False,
 ):
-    def keyf(x):
-        if sort_field == SortField.SPENDER:
-            result = x[0]
-        elif sort_field == SortField.DATE:
-            result = x[1]
-        elif sort_field == SortField.VALUE:
-            result = x[2]
-        elif sort_field == SortField.RECEIVER:
-            result = x[3]
-        elif sort_field == SortField.PURPOSE:
-            result = x[4]
+    def keyf(x: importer.AccountRecord):
+        if field == SortField.SPENDER:
+            result = x.spender
+        elif field == SortField.DATE:
+            result = x.date
+        elif field == SortField.VALUE:
+            result = x.value
+        elif field == SortField.RECEIVER:
+            result = x.receiver
+        elif field == SortField.PURPOSE:
+            result = x.purpose
         else:
             raise ValueError("Unknown Sort Field")
 
         return result
 
+    if field:
+        data = sorted(data, key=keyf, reverse=reverse)
+
+    return data
+
+
+def org_print(
+    data: List[importer.AccountRecord],
+    truncate: Optional[int] = 60,
+):
     out = []
     for d in data:
         out.append(
@@ -57,8 +66,6 @@ def org_print(
             ]
         )
 
-    if sort_field:
-        out = sorted(out, key=keyf, reverse=reverse)
     return out
 
 
@@ -79,7 +86,7 @@ class Monitor:
 
     def catlist(
         self,
-        label: str,
+        label: Optional[str] = None,
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
@@ -90,10 +97,32 @@ class Monitor:
         catdata = [
             d
             for d in self.data()
-            if label in d.labels
+            if (not label or label in d.labels)
             and not SKIP_LABEL in d.labels
             and check_spender(d)
             and d.date > startdate
             and d.date < enddate
         ]
         return catdata
+
+    def catsumplotdata(
+        self,
+        label: Optional[str] = None,
+        spender: Optional = None,
+        startdate: date = date(2000, 1, 31),
+        enddate: date = date(2050, 1, 31),
+    ) -> Tuple[List[date], List[float]]:
+        catdata = self.catlist(label, spender, startdate, enddate)
+
+        catdata = sort_records(catdata, field=SortField.DATE)
+        dates = []
+        sums = []
+        for d in catdata:
+            dates.append(d.date)
+            sum = 0
+            if len(sums):
+                sum = sums[-1]
+
+            sums.append(sum + d.value / 100)
+
+        return (dates, sums)
