@@ -1,6 +1,7 @@
 import csv
 import re
 import glob
+import shutil
 from typing import List, Dict
 import datetime
 from enum import Enum
@@ -84,6 +85,7 @@ class AccountRecord(BaseModel):
 
 REGEX_RULE_FILENAME = "regexrules.csv"
 RULES_SUBDIR = "rules"
+PREVIEW_SUBDIR = "preview"
 
 
 class AccountImporter:
@@ -100,11 +102,25 @@ class AccountImporter:
 
         return data
 
+    def import_errors(self):
+        import_errors = []
+        for fimp in self._file_importers:
+            import_errors.extend(fimp.import_errors)
+
+        return import_errors
+
     def _import(self):
         self._file_importers = []
         rulesdir = self._account.srcpath.joinpath(RULES_SUBDIR)
         if not rulesdir.is_dir():
             rulesdir.mkdir()
+
+        previewdir = self._account.srcpath.joinpath(PREVIEW_SUBDIR)
+        if previewdir.exists():
+            shutil.rmtree(previewdir)
+
+        if not previewdir.is_dir():
+            previewdir.mkdir()
 
         # read the regex rule file
         rulefilename = rulesdir.joinpath(REGEX_RULE_FILENAME)
@@ -171,10 +187,18 @@ class FileImporter:
         self._rulefilepath = self._filepath.parent.joinpath(
             RULES_SUBDIR, self._filepath.name
         )
+        self._previewfilepath = self._filepath.parent.joinpath(
+            PREVIEW_SUBDIR, self._filepath.name
+        )
         self._account_importer = account_importer
 
     def do_import(self):
-        self._data = self._normalize(self._import())
+        rows = self._import()
+        self._data = self._normalize(rows)
+
+        self._write_preview_file(rows)
+
+        self._validate(rows)
 
     def data(self) -> List[AccountRecord]:
         return self._data
@@ -201,6 +225,8 @@ class FileImporter:
             raise Exception(f"Found duplicates in file {self._filepath}")
 
         reader = csv.DictReader(lines, delimiter=";", quotechar='"')
+        self._fieldnames = reader.fieldnames
+
         rows = [row for row in reader]
         for r in rows:
             r[LABEL_HEADING] = ""
@@ -213,10 +239,12 @@ class FileImporter:
         for r in rows:
             _apply_rules(r, nonregex_rules, False, True)
 
-        if [r for r in rows if r[LABEL_HEADING] == ""]:
-            raise Exception(f"There are unlabeled entries in file {self._filepath}")
-
         return rows
+
+    def _validate(self, rows):
+        self.import_errors = []
+        if [r for r in rows if r[LABEL_HEADING] == ""]:
+            self.import_errors.append(f"There are unlabeled entries in file {self._filepath}")
 
     def _create_or_update_nonregex_rule_file(self, rows, fieldnames):
         nonregex_rules = []
@@ -246,6 +274,16 @@ class FileImporter:
 
         return nonregex_rules
 
+    def _write_preview_file(self, rows: List[Dict]):
+        sortedfieldnames = _create_rule_file_fieldnames(self._fieldnames)
+
+        with open(self._previewfilepath, "w") as f:
+            writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
+            writer.writeheader()
+
+            for row in rows:
+                if row[LABEL_HEADING]:
+                    writer.writerow(row)
 
 class CSVReader(csv.DictReader):
     def __init__(self, filepath: Path, encoding=None):
