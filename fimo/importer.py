@@ -164,7 +164,7 @@ def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: boo
 
     def compare_strings(rule: str, text: str):
         if regex_cmp:
-            return re.fullmatch(rule, text) is not None
+            return re.search(rule, text) is not None
         else:
             return rule == text
 
