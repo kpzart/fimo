@@ -10,13 +10,18 @@ from pydantic import BaseModel
 from pathlib import Path
 
 LABEL_HEADING = "KPZ_Label"
+COMMENT_HEADING = "KPZ_Comment"
 
 LABEL_ORDER = [
     LABEL_HEADING,
-    "Buchungstag",
-    "Auftraggeber / Begünstigter",
-    "Verwendungszweck",
-    "Betrag (EUR)",
+    COMMENT_HEADING,
+    "Buchung", # Liane
+    "Buchungstag", # Martin Konto
+    "Betrag", # Liane
+    "Betrag (EUR)", # Martin Konto
+    "Auftraggeber/Empfänger", # Liane
+    "Auftraggeber / Begünstigter", # Martin Konto
+    "Verwendungszweck", # Martin Konto
 ]
 
 
@@ -82,6 +87,7 @@ class AccountRecord(BaseModel):
     receiver: str
     purpose: str
     labels: List[str]
+    comment: List[str]
 
 REGEX_RULE_FILENAME = "regexrules.csv"
 RULES_SUBDIR = "rules"
@@ -146,7 +152,7 @@ def _create_rule_file_fieldnames(fieldnames: List):
     fieldnames_copy = []
     fieldnames_copy.extend(fieldnames)
 
-    sortedfieldnames = [LABEL_HEADING]
+    sortedfieldnames = [LABEL_HEADING, COMMENT_HEADING]
     for l in LABEL_ORDER:
         if l in fieldnames_copy:
             sortedfieldnames.append(l)
@@ -172,7 +178,7 @@ def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: boo
         comparisons = [
             compare_strings(rule[field], adict[field])
             for field in rule.keys()
-            if field not in [LABEL_HEADING] and rule[field]
+            if field not in [LABEL_HEADING, COMMENT_HEADING] and rule[field]
         ]
         if all(comparisons):
             if adict[LABEL_HEADING] and not overwrite:
@@ -180,6 +186,10 @@ def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: boo
             else:
                 adict[LABEL_HEADING] = rule[LABEL_HEADING]
 
+            if adict[COMMENT_HEADING] and not overwrite:
+                adict[COMMENT_HEADING] += "," + rule[COMMENT_HEADING]
+            else:
+                adict[COMMENT_HEADING] = rule[COMMENT_HEADING]
 
 class FileImporter:
     def __init__(self, filepath: Path, account_importer: AccountImporter):
@@ -213,6 +223,7 @@ class FileImporter:
                     ),
             receiver = row[self._account_importer._account.heading_receiver],
             purpose = row[self._account_importer._account.heading_purpose],
+            comment = row[COMMENT_HEADING].split(","),
             labels = row[LABEL_HEADING].split(","),
         ) for row in rows ]
 
@@ -230,7 +241,8 @@ class FileImporter:
         rows = [row for row in reader]
         for r in rows:
             r[LABEL_HEADING] = ""
-            _apply_rules(r, self._account_importer._regex_rules, True, False)
+            r[COMMENT_HEADING] = ""
+            _apply_rules(r, self._account_importer._regex_rules, True, True)
 
         nonregex_rules = self._create_or_update_nonregex_rule_file(
             rows, reader.fieldnames
@@ -260,16 +272,17 @@ class FileImporter:
 
             rows_remaining = rows.copy()
             for row in nonregex_rules:
-                if row[LABEL_HEADING]:
+                if row[LABEL_HEADING] or row[COMMENT_HEADING]:
                     writer.writerow(row)
 
                     orig_row = row.copy()
                     orig_row[LABEL_HEADING] = ""
+                    orig_row[COMMENT_HEADING] = ""
                     if orig_row in rows_remaining:
                         rows_remaining.remove(orig_row)
 
             for row in rows_remaining:
-                if not row[LABEL_HEADING]:
+                if not row[LABEL_HEADING] and not row[COMMENT_HEADING]:
                     writer.writerow(row)
 
         return nonregex_rules

@@ -13,6 +13,7 @@ class SortField(Enum):
     VALUE = 2
     RECEIVER = 3
     PURPOSE = 4
+    COMMENT = 5
 
 
 def _truncate_string(str_input: str, max_length: Optional[int]):
@@ -40,6 +41,8 @@ def sort_records(
             result = x.receiver
         elif field == SortField.PURPOSE:
             result = x.purpose
+        elif field == SortField.COMMENT:
+            result = x.comment
         else:
             raise ValueError("Unknown Sort Field")
 
@@ -65,6 +68,7 @@ def org_print(
                 (1 - 2 * int(invert)) * d.value / 100,
                 _truncate_string(d.receiver, truncate),
                 _truncate_string(d.purpose, truncate),
+                _truncate_string(d.comment, truncate),
             ]
         )
 
