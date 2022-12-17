@@ -1,0 +1,9 @@
+accounts:
+  - name: Konto Martin
+    heading_date: Buchungstag
+    heading_purpose: Verwendungszweck
+    heading_receiver: "Auftraggeber / Begünstigter"
+    heading_value: Betrag (EUR)
+    spender: Martin
+    srcpath: /home/kapuze/csv/konto/
+  ...
