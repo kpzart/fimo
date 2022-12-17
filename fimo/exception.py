@@ -1,0 +1,2 @@
+class FimoException(Exception):
+    pass

@@ -6,6 +6,7 @@ from typing import List, Dict
 import datetime
 from enum import Enum
 
+from fimo.exception import FimoException
 from pydantic import BaseModel
 from pathlib import Path
 
@@ -233,7 +234,7 @@ class FileImporter:
 
         _remove_stuff_before_header(lines)
         if _has_duplicates(lines):
-            raise Exception(f"Found duplicates in file {self._filepath}")
+            raise FimoException(f"Found duplicates in file {self._filepath}")
 
         reader = csv.DictReader(lines, delimiter=";", quotechar='"')
         self._fieldnames = reader.fieldnames
