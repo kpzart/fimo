@@ -78,6 +78,8 @@ class Monitor:
             imp = importer.AccountImporter(account)
             self._importers.append(imp)
             imp.do_import()
+            if imp.import_errors():
+                raise Exception(imp.import_errors()[0])
 
     def data(self):
         data = []
