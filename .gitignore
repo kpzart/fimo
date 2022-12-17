@@ -2,3 +2,5 @@
 /GRTAGS
 /__pycache__/
 /GTAGS
+__pycache__
+/config.yml

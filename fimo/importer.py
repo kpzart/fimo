@@ -4,7 +4,6 @@ import glob
 import shutil
 from typing import List, Dict
 import datetime
-from enum import Enum
 
 from fimo.exception import FimoException
 from pydantic import BaseModel
@@ -37,53 +36,22 @@ def _remove_stuff_before_header(lines):
     if found:
         del lines[: 15 - i + 1]
 
-class User(Enum):
-    MARTIN = "MARTIN"
-    LIANE = "LIANE"
-
 class Account(BaseModel):
     name: str
     srcpath: Path
     csv_delimiter: str = ";"
-    spender: User
+    spender: str
     heading_date: str
     heading_value: str
     heading_receiver: str
     heading_purpose: str
 
 
-ACCOUNTS = [
-    Account(name = "Konto Martin",
-            srcpath="/home/kapuze/Shit/2007 DKB/csv/konto/",
-            spender = User.MARTIN,
-            heading_date = "Buchungstag",
-            heading_value = "Betrag (EUR)",
-            heading_receiver = "Auftraggeber / Begünstigter",
-            heading_purpose = "Verwendungszweck",
-            ),
-    Account(name = "Visa Martin",
-            srcpath="/home/kapuze/Shit/2007 DKB/csv/visa/",
-            spender = User.MARTIN,
-            heading_date = "Belegdatum",
-            heading_value = "Betrag (EUR)",
-            heading_receiver = "",
-            heading_purpose = "Beschreibung",
-            ),
-    Account(name = "Konto Liane",
-            srcpath="/home/kapuze/Nextcloud/matlantis_ocloud/LöwiMiez/Finanzen/Miez/",
-            spender = User.LIANE,
-            heading_date = "Buchung",
-            heading_value = "Betrag",
-            heading_receiver = "Auftraggeber/Empfänger",
-            heading_purpose = "Verwendungszweck",
-            ),
-]
-
 class AccountRecord(BaseModel):
     """Repräsentiert einen Eintrag aus einem Kontoauszug oder einen manuellen Finanzvorgang."""
     account: Account
     date: datetime.date
-    spender: User
+    spender: str
     value: int
     receiver: str
     purpose: str

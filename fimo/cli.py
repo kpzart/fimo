@@ -2,14 +2,25 @@ import click
 
 from fimo.exception import FimoException
 
+from fimo import importer
+from pydantic_yaml import YamlModel
+from typing import List
+from pathlib import Path
+
+
+class FimoConfig(YamlModel):
+    accounts: List[importer.Account]
+
 
 @click.command()
-def fimo_import():
+@click.option("-c", "--config-file", "configfile", required=True)
+def fimo_import(configfile):
     try:
-        from fimo import importer
+        text = Path(configfile).read_text()
+        cfg = FimoConfig.parse_raw(text)
 
         importers = []
-        for acc in importer.ACCOUNTS:
+        for acc in cfg.accounts:
             print(f"Importing from {acc.name}")
             imp = importer.AccountImporter(acc)
             importers.append(imp)
