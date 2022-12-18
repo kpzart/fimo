@@ -225,7 +225,7 @@ class FileImporter:
     def _validate(self, rows):
         self.import_errors = []
         if [r for r in rows if r[LABEL_HEADING] == ""]:
-            self.import_errors.append(f"There are unlabeled entries in file {self._filepath}")
+            self.import_errors.append(f"There are unlabeled entries in file {self._rulefilepath}")
 
     def _create_or_update_nonregex_rule_file(self, rows, fieldnames):
         nonregex_rules = []
