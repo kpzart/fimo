@@ -12,19 +12,6 @@ from pathlib import Path
 LABEL_HEADING = "KPZ_Label"
 COMMENT_HEADING = "KPZ_Comment"
 
-LABEL_ORDER = [
-    LABEL_HEADING,
-    COMMENT_HEADING,
-    "Buchung", # Liane
-    "Buchungstag", # Martin Konto
-    "Betrag", # Liane
-    "Betrag (EUR)", # Martin Konto
-    "Auftraggeber/Empfänger", # Liane
-    "Auftraggeber / Begünstigter", # Martin Konto
-    "Verwendungszweck", # Martin Konto
-]
-
-
 def _remove_stuff_before_header(lines):
     # remove stuff before header line, it's separated by a blank line
     found = False
@@ -84,6 +71,28 @@ class AccountImporter:
 
         return import_errors
 
+    def _create_rule_file_fieldnames(self, fieldnames: List):
+        fieldnames_copy = []
+        fieldnames_copy.extend(fieldnames)
+
+        sortedfieldnames = [LABEL_HEADING, COMMENT_HEADING]
+        for l in [
+                LABEL_HEADING,
+                COMMENT_HEADING,
+                self._account.heading_date,
+                self._account.heading_value,
+                self._account.heading_receiver,
+                self._account.heading_purpose,
+        ]:
+            if l in fieldnames_copy:
+                sortedfieldnames.append(l)
+                fieldnames_copy.remove(l)
+
+        sortedfieldnames.extend(fieldnames_copy)
+
+        return sortedfieldnames
+
+
     def _import(self):
         self._file_importers = []
         rulesdir = self._account.srcpath.joinpath(RULES_SUBDIR)
@@ -115,21 +124,6 @@ class AccountImporter:
 
 def _has_duplicates(alist: List):
     return len(set(alist)) != len(alist)
-
-
-def _create_rule_file_fieldnames(fieldnames: List):
-    fieldnames_copy = []
-    fieldnames_copy.extend(fieldnames)
-
-    sortedfieldnames = [LABEL_HEADING, COMMENT_HEADING]
-    for l in LABEL_ORDER:
-        if l in fieldnames_copy:
-            sortedfieldnames.append(l)
-            fieldnames_copy.remove(l)
-
-    sortedfieldnames.extend(fieldnames_copy)
-
-    return sortedfieldnames
 
 
 def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: bool):
@@ -233,7 +227,7 @@ class FileImporter:
             reader = CSVReader(self._rulefilepath)
             nonregex_rules = [row for row in reader]
 
-        sortedfieldnames = _create_rule_file_fieldnames(fieldnames)
+        sortedfieldnames = self._account_importer._create_rule_file_fieldnames(fieldnames)
 
         with open(self._rulefilepath, "w") as f:
             writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
@@ -257,7 +251,7 @@ class FileImporter:
         return nonregex_rules
 
     def _write_preview_file(self, rows: List[Dict]):
-        sortedfieldnames = _create_rule_file_fieldnames(self._fieldnames)
+        sortedfieldnames = self._account_importer._create_rule_file_fieldnames(self._fieldnames)
 
         with open(self._previewfilepath, "w") as f:
             writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
@@ -275,14 +269,3 @@ class CSVReader(csv.DictReader):
         _remove_stuff_before_header(lines)
 
         super().__init__(lines, delimiter=";", quotechar='"')
-
-
-def main():
-    for account in ACCOUNTS:
-        acc = AccountImporter(account)
-        acc.do_import()
-        acc.data()
-
-
-if __name__ == "__main__":
-    main()
