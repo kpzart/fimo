@@ -63,7 +63,7 @@ def org_print(
     for d in data:
         out.append(
             [
-                d.account.spender.value,
+                d.account.spender,
                 d.date.strftime("%Y-%m-%d"),
                 (1 - 2 * int(invert)) * d.value / 100,
                 _truncate_string(d.receiver, truncate),
@@ -76,14 +76,14 @@ def org_print(
 
 
 class Monitor:
-    def __init__(self):
+    def __init__(self, accounts: List[importer.Account]):
         self._importers = []
-        for account in importer.ACCOUNTS[0:1]:
+        for account in accounts:
             imp = importer.AccountImporter(account)
             self._importers.append(imp)
             imp.do_import()
             if imp.import_errors():
-                raise Exception(imp.import_errors()[0])
+                print(f"Warning: {imp.import_errors()[0]}")
 
     def data(self):
         data = []
