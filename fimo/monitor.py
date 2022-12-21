@@ -94,7 +94,7 @@ class Monitor:
 
     def catlist(
         self,
-        label: Optional[str] = None,
+        labels: Optional[List[str]] = None,
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
@@ -105,7 +105,7 @@ class Monitor:
         catdata = [
             d
             for d in self.data()
-            if (not label or label in d.labels)
+            if (not labels or set(labels).intersection(d.labels))
             and not SKIP_LABEL in d.labels
             and check_spender(d)
             and d.date > startdate
@@ -115,24 +115,24 @@ class Monitor:
 
     def sum(
         self,
-        label: Optional[str] = None,
+        labels: Optional[List[str]] = None,
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> float:
-        catdata = self.catlist(label, spender, startdate, enddate)
+        catdata = self.catlist(labels, spender, startdate, enddate)
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
 
     def monthlysumplotdata(
         self,
-        label: Optional[str] = None,
+        labels: Optional[List[str]] = None,
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
-        allcatdata = sort_records(self.catlist(label, spender), field=SortField.DATE)
+        allcatdata = sort_records(self.catlist(labels, spender), field=SortField.DATE)
         startdate = startdate if startdate > allcatdata[0].date else allcatdata[0].date
         enddate = enddate if enddate < allcatdata[-1].date else allcatdata[-1].date
 
@@ -145,7 +145,7 @@ class Monitor:
         plotdays = []
         for i in range(len(stepdays) - 1):
             catdata = self.catlist(
-                label, spender, stepdays[i].date(), stepdays[i + 1].date()
+                labels, spender, stepdays[i].date(), stepdays[i + 1].date()
             )
             catsums.append(
                 (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
@@ -156,13 +156,13 @@ class Monitor:
 
     def catsumplotdata(
         self,
-        label: Optional[str] = None,
+        labels: Optional[List[str]] = None,
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
-        catdata = self.catlist(label, spender, startdate, enddate)
+        catdata = self.catlist(labels, spender, startdate, enddate)
 
         catdata = sort_records(catdata, field=SortField.DATE)
         dates = []
