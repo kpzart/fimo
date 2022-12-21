@@ -14,7 +14,13 @@ class FimoConfig(YamlModel):
 
 
 @click.command()
-@click.option("-c", "--config-file", "configfile", required=True, default=os.environ["HOME"] + "/.fimo.yml")
+@click.option(
+    "-c",
+    "--config-file",
+    "configfile",
+    required=True,
+    default=os.environ["HOME"] + "/.fimo.yml",
+)
 def fimo_import(configfile):
     try:
         text = Path(configfile).read_text()

@@ -3,6 +3,10 @@ from typing import List, Optional, Tuple
 from enum import Enum
 from datetime import date, timedelta
 from dateutil import rrule
+from pydantic import BaseModel
+
+import matplotlib
+import matplotlib.pyplot as plt
 
 SKIP_LABEL = "SKIP"
 
@@ -58,7 +62,7 @@ def org_print(
     data: List[importer.AccountRecord],
     truncate: Optional[int] = 60,
     invert: bool = False,
-):
+) -> List[List[str]]:
     out = []
     for d in data:
         out.append(
@@ -73,6 +77,14 @@ def org_print(
         )
 
     return out
+
+
+class RecordQuery(BaseModel):
+    labels: Optional[List[str]]
+    spender: Optional[str]
+    startdate: date = date(2000, 1, 31)
+    enddate: date = date(2050, 1, 31)
+    invert: bool = False
 
 
 class Monitor:
@@ -92,10 +104,44 @@ class Monitor:
 
         return data
 
+    def org_list(
+        self,
+        query: RecordQuery,
+        truncate: Optional[int] = 60,
+        sort_field: Optional[SortField] = None,
+        sort_reverse: bool = False,
+    ) -> List[List[str]]:
+        data = self.catlist(query.labels, query.spender, query.startdate, query.enddate)
+        return org_print(
+            sort_records(data, field=sort_field, reverse=sort_reverse),
+            truncate=truncate,
+            invert=invert,
+        )
+
+    def org_monthlycatsumplot(self, query: RecordQuery, filename: str):
+        fig, ax = plt.subplots()
+        dates, sums = self.monthlycatsumplotdata(
+            query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
+        )
+        ax.bar(dates, sums)
+        fig.tight_layout()
+        plt.savefig(filename)
+        return filename
+
+    def org_catsumplot(self, query: RecordQuery, filename: str):
+        fig, ax = plt.subplots()
+        dates, sums = self.catsumplotdata(
+            query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
+        )
+        ax.plot(dates, sums)
+        fig.tight_layout()
+        plt.savefig(filename)
+        return filename
+
     def catlist(
         self,
         labels: Optional[List[str]] = None,
-        spender: Optional = None,
+        spender: Optional[str] = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
     ) -> List[importer.AccountRecord]:
@@ -124,7 +170,7 @@ class Monitor:
         catdata = self.catlist(labels, spender, startdate, enddate)
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
 
-    def monthlysumplotdata(
+    def monthlycatsumplotdata(
         self,
         labels: Optional[List[str]] = None,
         spender: Optional = None,
@@ -173,6 +219,6 @@ class Monitor:
             if len(sums):
                 sum = sums[-1]
 
-            sums.append((1 - 2 * int(invert)) * (sum + d.value / 100))
+            sums.append(sum + (1 - 2 * int(invert)) * d.value / 100)
 
         return (dates, sums)

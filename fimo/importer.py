@@ -12,6 +12,7 @@ from pathlib import Path
 LABEL_HEADING = "KPZ_Label"
 COMMENT_HEADING = "KPZ_Comment"
 
+
 def _remove_stuff_before_header(lines):
     # remove stuff before header line, it's separated by a blank line
     found = False
@@ -22,6 +23,7 @@ def _remove_stuff_before_header(lines):
 
     if found:
         del lines[: 15 - i + 1]
+
 
 class Account(BaseModel):
     name: str
@@ -38,6 +40,7 @@ class Account(BaseModel):
 
 class AccountRecord(BaseModel):
     """Repräsentiert einen Eintrag aus einem Kontoauszug oder einen manuellen Finanzvorgang."""
+
     account: Account
     date: datetime.date
     spender: str
@@ -46,6 +49,7 @@ class AccountRecord(BaseModel):
     purpose: str
     labels: List[str]
     comment: List[str]
+
 
 REGEX_RULE_FILENAME = "regexrules.csv"
 RULES_SUBDIR = "rules"
@@ -79,12 +83,12 @@ class AccountImporter:
 
         sortedfieldnames = [LABEL_HEADING, COMMENT_HEADING]
         for l in [
-                LABEL_HEADING,
-                COMMENT_HEADING,
-                self._account.heading_date,
-                self._account.heading_value,
-                self._account.heading_receiver,
-                self._account.heading_purpose,
+            LABEL_HEADING,
+            COMMENT_HEADING,
+            self._account.heading_date,
+            self._account.heading_value,
+            self._account.heading_receiver,
+            self._account.heading_purpose,
         ]:
             if l in fieldnames_copy:
                 sortedfieldnames.append(l)
@@ -93,7 +97,6 @@ class AccountImporter:
         sortedfieldnames.extend(fieldnames_copy)
 
         return sortedfieldnames
-
 
     def _import(self):
         self._file_importers = []
@@ -113,7 +116,7 @@ class AccountImporter:
             # read the regex rule file
             rulefilename = rulesdir.joinpath(REGEX_RULE_FILENAME)
             if rulefilename.exists():
-                regex_rule_reader = CSVReader(rulefilename, delimiter = ";")
+                regex_rule_reader = CSVReader(rulefilename, delimiter=";")
                 self._regex_rules = [row for row in regex_rule_reader]
             else:
                 self._regex_rules = []
@@ -158,17 +161,18 @@ def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: boo
             else:
                 adict[COMMENT_HEADING] = rule[COMMENT_HEADING]
 
+
 class FileImporter:
     def __init__(self, filepath: Path, account_importer: AccountImporter):
         self._filepath = filepath
         self._account_importer = account_importer
         if not self._account_importer._account.labelled:
-          self._rulefilepath = self._filepath.parent.joinpath(
-              RULES_SUBDIR, self._filepath.name
-          )
-          self._previewfilepath = self._filepath.parent.joinpath(
-              PREVIEW_SUBDIR, self._filepath.name
-          )
+            self._rulefilepath = self._filepath.parent.joinpath(
+                RULES_SUBDIR, self._filepath.name
+            )
+            self._previewfilepath = self._filepath.parent.joinpath(
+                PREVIEW_SUBDIR, self._filepath.name
+            )
 
     def do_import(self):
         rows = self._import()
@@ -183,28 +187,41 @@ class FileImporter:
         return self._data
 
     def _normalize(self, rows: List[Dict]) -> List[AccountRecord]:
-        return [ AccountRecord(
-            account = self._account_importer._account,
-            spender = self._account_importer._account.spender,
-            date = datetime.datetime.strptime(row[self._account_importer._account.heading_date], "%d.%m.%Y").date(),
-            value = int(
-                        row[self._account_importer._account.heading_value].replace(",", "").replace(".", "")
-                    ),
-            receiver = row.get(self._account_importer._account.heading_receiver, ""),
-            purpose = row.get(self._account_importer._account.heading_purpose, ""),
-            comment = row[COMMENT_HEADING].split(","),
-            labels = row[LABEL_HEADING].split(","),
-        ) for row in rows ]
+        return [
+            AccountRecord(
+                account=self._account_importer._account,
+                spender=self._account_importer._account.spender,
+                date=datetime.datetime.strptime(
+                    row[self._account_importer._account.heading_date], "%d.%m.%Y"
+                ).date(),
+                value=int(
+                    row[self._account_importer._account.heading_value]
+                    .replace(",", "")
+                    .replace(".", "")
+                ),
+                receiver=row.get(self._account_importer._account.heading_receiver, ""),
+                purpose=row.get(self._account_importer._account.heading_purpose, ""),
+                comment=row[COMMENT_HEADING].split(","),
+                labels=row[LABEL_HEADING].split(","),
+            )
+            for row in rows
+        ]
 
     def _import(self) -> List[Dict]:
-        with open(self._filepath, "r", encoding=self._account_importer._account.csv_encoding) as f:
+        with open(
+            self._filepath, "r", encoding=self._account_importer._account.csv_encoding
+        ) as f:
             lines = f.readlines()
 
         _remove_stuff_before_header(lines)
         if _has_duplicates(lines):
             raise FimoException(f"Found duplicates in file {self._filepath}")
 
-        reader = csv.DictReader(lines, delimiter=self._account_importer._account.csv_delimiter, quotechar='"')
+        reader = csv.DictReader(
+            lines,
+            delimiter=self._account_importer._account.csv_delimiter,
+            quotechar='"',
+        )
         self._fieldnames = reader.fieldnames
 
         rows = [row for row in reader]
@@ -227,15 +244,19 @@ class FileImporter:
     def _validate(self, rows):
         self.import_errors = []
         if [r for r in rows if r[LABEL_HEADING] == ""]:
-            self.import_errors.append(f"There are unlabeled entries in file {self._rulefilepath}")
+            self.import_errors.append(
+                f"There are unlabeled entries in file {self._rulefilepath}"
+            )
 
     def _create_or_update_nonregex_rule_file(self, rows, fieldnames):
         nonregex_rules = []
         if self._rulefilepath.exists():
-            reader = CSVReader(self._rulefilepath, delimiter = ";")
+            reader = CSVReader(self._rulefilepath, delimiter=";")
             nonregex_rules = [row for row in reader]
 
-        sortedfieldnames = self._account_importer._create_rule_file_fieldnames(fieldnames)
+        sortedfieldnames = self._account_importer._create_rule_file_fieldnames(
+            fieldnames
+        )
 
         with open(self._rulefilepath, "w") as f:
             writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
@@ -259,7 +280,9 @@ class FileImporter:
         return nonregex_rules
 
     def _write_preview_file(self, rows: List[Dict]):
-        sortedfieldnames = self._account_importer._create_rule_file_fieldnames(self._fieldnames)
+        sortedfieldnames = self._account_importer._create_rule_file_fieldnames(
+            self._fieldnames
+        )
 
         with open(self._previewfilepath, "w") as f:
             writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
@@ -268,6 +291,7 @@ class FileImporter:
             for row in rows:
                 if row[LABEL_HEADING]:
                     writer.writerow(row)
+
 
 class CSVReader(csv.DictReader):
     def __init__(self, filepath: Path, delimiter: str, encoding=None):
