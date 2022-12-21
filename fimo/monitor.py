@@ -85,6 +85,7 @@ class RecordQuery(BaseModel):
     startdate: date = date(2000, 1, 31)
     enddate: date = date(2050, 1, 31)
     invert: bool = False
+    plotlabel: Optional[str]
 
 
 class Monitor:
@@ -118,22 +119,28 @@ class Monitor:
             invert=invert,
         )
 
-    def org_monthlycatsumplot(self, query: RecordQuery, filename: str):
+    def org_monthlycatsumplot(self, queries: List[RecordQuery], filename: str):
         fig, ax = plt.subplots()
-        dates, sums = self.monthlycatsumplotdata(
-            query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
-        )
-        ax.bar(dates, sums)
+        for query in queries:
+            dates, sums = self.monthlycatsumplotdata(
+                query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
+            )
+            ax.bar(dates, sums, label=query.plotlabel if query.plotlabel else None)
+
+        ax.legend()
         fig.tight_layout()
         plt.savefig(filename)
         return filename
 
-    def org_catsumplot(self, query: RecordQuery, filename: str):
+    def org_catsumplot(self, queries: List[RecordQuery], filename: str):
         fig, ax = plt.subplots()
-        dates, sums = self.catsumplotdata(
-            query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
-        )
-        ax.plot(dates, sums)
+        for query in queries:
+            dates, sums = self.catsumplotdata(
+                query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
+            )
+            ax.plot(dates, sums, label=query.plotlabel if query.plotlabel else None)
+
+        ax.legend()
         fig.tight_layout()
         plt.savefig(filename)
         return filename
