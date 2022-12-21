@@ -2,7 +2,7 @@ import csv
 import re
 import glob
 import shutil
-from typing import List, Dict
+from typing import List, Dict, Optional
 import datetime
 
 from fimo.exception import FimoException
@@ -26,7 +26,8 @@ def _remove_stuff_before_header(lines):
 class Account(BaseModel):
     name: str
     srcpath: Path
-    csv_delimiter: str = ";"
+    csv_delimiter: str
+    csv_encoding: Optional[str]
     spender: str
     heading_date: str
     heading_value: str
@@ -184,21 +185,21 @@ class FileImporter:
             value = int(
                         row[self._account_importer._account.heading_value].replace(",", "").replace(".", "")
                     ),
-            receiver = row[self._account_importer._account.heading_receiver],
-            purpose = row[self._account_importer._account.heading_purpose],
+            receiver = row.get(self._account_importer._account.heading_receiver, ""),
+            purpose = row.get(self._account_importer._account.heading_purpose, ""),
             comment = row[COMMENT_HEADING].split(","),
             labels = row[LABEL_HEADING].split(","),
         ) for row in rows ]
 
     def _import(self) -> List[Dict]:
-        with open(self._filepath, "r", encoding="iso-8859-1") as f:
+        with open(self._filepath, "r", encoding=self._account_importer._account.csv_encoding) as f:
             lines = f.readlines()
 
         _remove_stuff_before_header(lines)
         if _has_duplicates(lines):
             raise FimoException(f"Found duplicates in file {self._filepath}")
 
-        reader = csv.DictReader(lines, delimiter=";", quotechar='"')
+        reader = csv.DictReader(lines, delimiter=self._account_importer._account.csv_delimiter, quotechar='"')
         self._fieldnames = reader.fieldnames
 
         rows = [row for row in reader]
@@ -224,7 +225,7 @@ class FileImporter:
     def _create_or_update_nonregex_rule_file(self, rows, fieldnames):
         nonregex_rules = []
         if self._rulefilepath.exists():
-            reader = CSVReader(self._rulefilepath)
+            reader = CSVReader(self._rulefilepath, delimiter = ";")
             nonregex_rules = [row for row in reader]
 
         sortedfieldnames = self._account_importer._create_rule_file_fieldnames(fieldnames)
@@ -262,10 +263,10 @@ class FileImporter:
                     writer.writerow(row)
 
 class CSVReader(csv.DictReader):
-    def __init__(self, filepath: Path, encoding=None):
+    def __init__(self, filepath: Path, delimiter: str, encoding=None):
         with open(filepath, "r", encoding=encoding) as f:
             lines = f.readlines()
 
         _remove_stuff_before_header(lines)
 
-        super().__init__(lines, delimiter=";", quotechar='"')
+        super().__init__(lines, delimiter=delimiter, quotechar='"')
