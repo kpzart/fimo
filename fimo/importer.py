@@ -33,6 +33,7 @@ class Account(BaseModel):
     heading_value: str
     heading_receiver: str
     heading_purpose: str
+    labelled: bool = False
 
 
 class AccountRecord(BaseModel):
@@ -96,24 +97,26 @@ class AccountImporter:
 
     def _import(self):
         self._file_importers = []
-        rulesdir = self._account.srcpath.joinpath(RULES_SUBDIR)
-        if not rulesdir.is_dir():
-            rulesdir.mkdir()
 
-        previewdir = self._account.srcpath.joinpath(PREVIEW_SUBDIR)
-        if previewdir.exists():
-            shutil.rmtree(previewdir)
+        if not self._account.labelled:
+            rulesdir = self._account.srcpath.joinpath(RULES_SUBDIR)
+            if not rulesdir.is_dir():
+                rulesdir.mkdir()
 
-        if not previewdir.is_dir():
-            previewdir.mkdir()
+            previewdir = self._account.srcpath.joinpath(PREVIEW_SUBDIR)
+            if previewdir.exists():
+                shutil.rmtree(previewdir)
 
-        # read the regex rule file
-        rulefilename = rulesdir.joinpath(REGEX_RULE_FILENAME)
-        if rulefilename.exists():
-            regex_rule_reader = CSVReader(rulefilename)
-            self._regex_rules = [row for row in regex_rule_reader]
-        else:
-            self._regex_rules = []
+            if not previewdir.is_dir():
+                previewdir.mkdir()
+
+            # read the regex rule file
+            rulefilename = rulesdir.joinpath(REGEX_RULE_FILENAME)
+            if rulefilename.exists():
+                regex_rule_reader = CSVReader(rulefilename, delimiter = ";")
+                self._regex_rules = [row for row in regex_rule_reader]
+            else:
+                self._regex_rules = []
 
         # import src files
         files = glob.glob(str(self._account.srcpath.joinpath("*.csv")))
@@ -158,19 +161,21 @@ def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: boo
 class FileImporter:
     def __init__(self, filepath: Path, account_importer: AccountImporter):
         self._filepath = filepath
-        self._rulefilepath = self._filepath.parent.joinpath(
-            RULES_SUBDIR, self._filepath.name
-        )
-        self._previewfilepath = self._filepath.parent.joinpath(
-            PREVIEW_SUBDIR, self._filepath.name
-        )
         self._account_importer = account_importer
+        if not self._account_importer._account.labelled:
+          self._rulefilepath = self._filepath.parent.joinpath(
+              RULES_SUBDIR, self._filepath.name
+          )
+          self._previewfilepath = self._filepath.parent.joinpath(
+              PREVIEW_SUBDIR, self._filepath.name
+          )
 
     def do_import(self):
         rows = self._import()
         self._data = self._normalize(rows)
 
-        self._write_preview_file(rows)
+        if not self._account_importer._account.labelled:
+            self._write_preview_file(rows)
 
         self._validate(rows)
 
@@ -203,17 +208,19 @@ class FileImporter:
         self._fieldnames = reader.fieldnames
 
         rows = [row for row in reader]
-        for r in rows:
-            r[LABEL_HEADING] = ""
-            r[COMMENT_HEADING] = ""
-            _apply_rules(r, self._account_importer._regex_rules, True, True)
 
-        nonregex_rules = self._create_or_update_nonregex_rule_file(
-            rows, reader.fieldnames
-        )
+        if not self._account_importer._account.labelled:
+            for r in rows:
+                r[LABEL_HEADING] = ""
+                r[COMMENT_HEADING] = ""
+                _apply_rules(r, self._account_importer._regex_rules, True, True)
 
-        for r in rows:
-            _apply_rules(r, nonregex_rules, False, True)
+            nonregex_rules = self._create_or_update_nonregex_rule_file(
+                rows, reader.fieldnames
+            )
+
+            for r in rows:
+                _apply_rules(r, nonregex_rules, False, True)
 
         return rows
 
