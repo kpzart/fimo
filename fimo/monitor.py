@@ -13,6 +13,14 @@ SKIP_LABEL = "SKIP"
 FIGSIZE = [16, 9]
 
 
+def other_spender(spender: str):
+    return "Liane" if spender == "Martin" else "Martin"
+
+
+def prefix_label(label: str, spender: str):
+    return spender[0] + "_" + label
+
+
 class SortField(Enum):
     SPENDER = 0
     DATE = 1
@@ -255,6 +263,52 @@ class Monitor:
     ) -> float:
         catdata = self.catlist(labels, spender, startdate, enddate)
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
+
+    def compareLM(self, query: RecordQuery) -> float:
+        """
+        Vergleiche aus sich von query.spender. Ausgaben der Kategorien in query.labels werden aufgeteilt.
+
+        Einkommen wird nicht explizit angerechnet. Transfer Leistungen dagegen schon.
+        """
+        # Ausgaben von spender
+        expenses_spender = self.sum(
+            query.labels, query.spender, query.startdate, query.enddate, invert=True
+        )
+
+        # Ausgaben des anderen
+        expenses_other = self.sum(
+            query.labels,
+            other_spender(query.spender),
+            query.startdate,
+            query.enddate,
+            invert=True,
+        )
+
+        # Transfer Ausgaben
+        transfer_spender = self.sum(
+            prefix_label("TRANSFER", query.spender),
+            query.spender,
+            query.startdate,
+            query.enddate,
+            invert=True,
+        )
+
+        # Transfer Einnahmen
+        transfer_other = self.sum(
+            prefix_label("TRANSFER", other_spender(query.spender)),
+            query.spender,
+            query.startdate,
+            query.enddate,
+            invert=True,
+        )
+
+        sum = (
+            expenses_spender
+            - (expenses_spender + expenses_other) / 2
+            + transfer_spender
+            - transfer_other
+        )
+        return sum
 
     def monthlycatsumplotdata(
         self,
