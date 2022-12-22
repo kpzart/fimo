@@ -210,7 +210,7 @@ class Monitor:
         return filename
 
     def org_catplot(self, queries: List[RecordQuery], filename: str):
-        fig, axs = plt.subplots(len(queries))
+        fig, ax = plt.subplots()
         for i, query in enumerate(queries):
             dates, sums, labels = self.catplotdata(
                 query.labels,
@@ -219,14 +219,14 @@ class Monitor:
                 query.enddate,
                 invert=query.invert,
             )
-            axs[i].stem(
+            ax.stem(
                 dates,
                 sums,
                 label=query.plotlabel if query.plotlabel else f"{i}",
                 markerfmt=["o", "P", "X", "v", "^"][i],
             )
 
-        # ax.legend()
+        ax.legend()
         fig.set_size_inches(FIGSIZE)
         fig.tight_layout()
         plt.savefig(filename)
