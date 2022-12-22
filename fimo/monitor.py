@@ -5,10 +5,12 @@ from datetime import date, timedelta
 from dateutil import rrule
 from pydantic import BaseModel
 
+import numpy
 import matplotlib
 import matplotlib.pyplot as plt
 
 SKIP_LABEL = "SKIP"
+FIGSIZE = [16, 9]
 
 
 class SortField(Enum):
@@ -116,31 +118,92 @@ class Monitor:
         return org_print(
             sort_records(data, field=sort_field, reverse=sort_reverse),
             truncate=truncate,
-            invert=invert,
+            invert=query.invert,
         )
 
     def org_monthlycatsumplot(self, queries: List[RecordQuery], filename: str):
         fig, ax = plt.subplots()
-        for query in queries:
+        bottom_dict = {}
+
+        for i, query in enumerate(queries):
             dates, sums = self.monthlycatsumplotdata(
-                query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
+                query.labels,
+                query.spender,
+                query.startdate,
+                query.enddate,
+                invert=query.invert,
             )
-            ax.bar(dates, sums, label=query.plotlabel if query.plotlabel else None)
+
+            bottom = []
+            for d in dates:
+                if d in bottom_dict:
+                    bottom.append(bottom_dict[d])
+                else:
+                    bottom.append(0)
+
+            ax.bar(
+                dates,
+                sums,
+                bottom=bottom,
+                label=query.plotlabel if query.plotlabel else f"{i}",
+            )
+
+            for d, s in zip(dates, sums):
+                if d in bottom_dict:
+                    bottom_dict[d] += s
+                else:
+                    bottom_dict[d] = s
+
+            bottom += numpy.array(sums)
 
         ax.legend()
+        fig.set_size_inches(FIGSIZE)
         fig.tight_layout()
         plt.savefig(filename)
         return filename
 
     def org_catsumplot(self, queries: List[RecordQuery], filename: str):
         fig, ax = plt.subplots()
-        for query in queries:
+        for i, query in enumerate(queries):
             dates, sums = self.catsumplotdata(
-                query.labels, query.spender, query.startdate, query.enddate, invert=query.invert
+                query.labels,
+                query.spender,
+                query.startdate,
+                query.enddate,
+                invert=query.invert,
             )
-            ax.plot(dates, sums, label=query.plotlabel if query.plotlabel else None)
+            ax.step(
+                dates,
+                sums,
+                label=query.plotlabel if query.plotlabel else f"{i}",
+                where="post",
+            )
 
         ax.legend()
+        fig.set_size_inches(FIGSIZE)
+        fig.tight_layout()
+        plt.savefig(filename)
+        return filename
+
+    def org_catplot(self, queries: List[RecordQuery], filename: str):
+        fig, axs = plt.subplots(len(queries))
+        for i, query in enumerate(queries):
+            dates, sums, labels = self.catplotdata(
+                query.labels,
+                query.spender,
+                query.startdate,
+                query.enddate,
+                invert=query.invert,
+            )
+            axs[i].stem(
+                dates,
+                sums,
+                label=query.plotlabel if query.plotlabel else f"{i}",
+                markerfmt=["o", "P", "X", "v", "^"][i],
+            )
+
+        # ax.legend()
+        fig.set_size_inches(FIGSIZE)
         fig.tight_layout()
         plt.savefig(filename)
         return filename
@@ -186,6 +249,9 @@ class Monitor:
         invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
         allcatdata = sort_records(self.catlist(labels, spender), field=SortField.DATE)
+        if not allcatdata:
+            return ([], [])
+
         startdate = startdate if startdate > allcatdata[0].date else allcatdata[0].date
         enddate = enddate if enddate < allcatdata[-1].date else allcatdata[-1].date
 
@@ -217,7 +283,6 @@ class Monitor:
     ) -> Tuple[List[date], List[float]]:
         catdata = self.catlist(labels, spender, startdate, enddate)
 
-        catdata = sort_records(catdata, field=SortField.DATE)
         dates = []
         sums = []
         for d in catdata:
@@ -228,4 +293,22 @@ class Monitor:
 
             sums.append(sum + (1 - 2 * int(invert)) * d.value / 100)
 
-        return (dates, sums)
+    def catplotdata(
+        self,
+        labels: Optional[List[str]] = None,
+        spender: Optional = None,
+        startdate: date = date(2000, 1, 31),
+        enddate: date = date(2050, 1, 31),
+        invert: bool = False,
+    ) -> Tuple[List[date], List[float], List[str]]:
+        catdata = self.catlist(labels, spender, startdate, enddate)
+
+        dates = []
+        values = []
+        labels = []
+        for d in catdata:
+            dates.append(d.date)
+            values.append((1 - 2 * int(invert)) * d.value / 100)
+            labels.append(d.comment if d.comment else d.purpose)
+
+        return (dates, values, labels)
