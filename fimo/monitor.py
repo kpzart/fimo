@@ -118,7 +118,7 @@ class Monitor:
     def labels_in_use(self, query: RecordQuery) -> List[Tuple[str, int]]:
         labels = []
         for d in self.catlist(
-            query.labels, query.spender, query.startdate, query.enddate
+            labels=query.labels, spender=query.spender, startdate=query.startdate, enddate=query.enddate
         ):
             labels.extend(d.labels)
 
@@ -138,7 +138,7 @@ class Monitor:
         sort_field: Optional[SortField] = None,
         sort_reverse: bool = False,
     ) -> List[List[str]]:
-        data = self.catlist(query.labels, query.spender, query.startdate, query.enddate)
+        data = self.catlist(labels=query.labels, spender=query.spender, startdate=query.startdate, enddate=query.enddate)
         return org_print(
             sort_records(data, field=sort_field, reverse=sort_reverse),
             truncate=truncate,
@@ -235,6 +235,7 @@ class Monitor:
     def catlist(
         self,
         labels: Optional[List[str]] = None,
+        exclude_labels: Optional[List[str]] = None,
         spender: Optional[str] = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
@@ -246,10 +247,9 @@ class Monitor:
             d
             for d in self.data()
             if (not labels or set(labels).intersection(d.labels))
-            and not SKIP_LABEL in d.labels
-            and check_spender(d)
-            and d.date > startdate
-            and d.date < enddate
+            and (not exclude_labels or not set(exclude_labels).intersection(d.labels))
+            # and not SKIP_LABEL in d.labels
+            and check_spender(d) and d.date > startdate and d.date < enddate
         ]
         return catdata
 
@@ -261,7 +261,9 @@ class Monitor:
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> float:
-        catdata = self.catlist(labels, spender, startdate, enddate)
+        catdata = self.catlist(
+            labels=labels, spender=spender, startdate=startdate, enddate=enddate
+        )
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
 
     def compareLM(self, query: RecordQuery) -> float:
@@ -318,7 +320,7 @@ class Monitor:
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
-        allcatdata = sort_records(self.catlist(labels, spender), field=SortField.DATE)
+        allcatdata = sort_records(self.catlist(labels=labels, spender=spender), field=SortField.DATE)
         if not allcatdata:
             return ([], [])
 
@@ -334,7 +336,7 @@ class Monitor:
         plotdays = []
         for i in range(len(stepdays) - 1):
             catdata = self.catlist(
-                labels, spender, stepdays[i].date(), stepdays[i + 1].date()
+                labels=labels, spender=spender, startdate=stepdays[i].date(), enddate=stepdays[i + 1].date()
             )
             catsums.append(
                 (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
@@ -351,7 +353,9 @@ class Monitor:
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
-        catdata = self.catlist(labels, spender, startdate, enddate)
+        catdata = self.catlist(
+            labels=labels, spender=spender, startdate=startdate, enddate=enddate
+        )
 
         dates = []
         sums = []
@@ -371,7 +375,9 @@ class Monitor:
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> Tuple[List[date], List[float], List[str]]:
-        catdata = self.catlist(labels, spender, startdate, enddate)
+        catdata = self.catlist(
+            labels=labels, spender=spender, startdate=startdate, enddate=enddate
+        )
 
         dates = []
         values = []
