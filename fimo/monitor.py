@@ -1,5 +1,5 @@
 from fimo import importer
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from enum import Enum
 from datetime import date, timedelta
 from dateutil import rrule
@@ -107,6 +107,22 @@ class Monitor:
 
         return data
 
+    def labels_in_use(self, query: RecordQuery) -> List[Tuple[str, int]]:
+        labels = []
+        for d in self.catlist(
+            query.labels, query.spender, query.startdate, query.enddate
+        ):
+            labels.extend(d.labels)
+
+        labels_count = []
+        for l in list(set(labels)):
+            labels_count.append((l, labels.count(l)))
+
+        return labels_count
+
+    def org_labels(self, query: RecordQuery) -> List[List[str]]:
+        return sorted(self.labels_in_use(query), key=lambda x: x[1])
+
     def org_list(
         self,
         query: RecordQuery,
@@ -121,7 +137,7 @@ class Monitor:
             invert=query.invert,
         )
 
-    def org_monthlycatsumplot(self, queries: List[RecordQuery], filename: str):
+    def org_monthlycatsumplot(self, queries: List[RecordQuery], filename: str) -> str:
         fig, ax = plt.subplots()
         bottom_dict = {}
 
