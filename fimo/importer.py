@@ -259,7 +259,9 @@ class FileImporter:
         )
 
         with open(self._rulefilepath, "w") as f:
-            writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
+            writer = csv.DictWriter(
+                f, fieldnames=sortedfieldnames, delimiter=";", quoting=csv.QUOTE_ALL
+            )
             writer.writeheader()
 
             rows_remaining = rows.copy()
@@ -285,7 +287,9 @@ class FileImporter:
         )
 
         with open(self._previewfilepath, "w") as f:
-            writer = csv.DictWriter(f, fieldnames=sortedfieldnames, delimiter=";")
+            writer = csv.DictWriter(
+                f, fieldnames=sortedfieldnames, delimiter=";", quoting=csv.QUOTE_ALL
+            )
             writer.writeheader()
 
             for row in rows:
