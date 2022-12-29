@@ -12,13 +12,15 @@ import matplotlib.pyplot as plt
 SKIP_LABEL = "SKIP"
 FIGSIZE = [16, 9]
 
+PREFIXES = {"Martin": "L", "Liane": "M"}
+
 
 def other_spender(spender: str):
     return "Liane" if spender == "Martin" else "Martin"
 
 
 def prefix_label(label: str, spender: str):
-    return spender[0] + "_" + label
+    return PREFIXES[spender] + "_" + label
 
 
 class SortField(Enum):
@@ -77,7 +79,7 @@ def org_print(
         [
             "SRC",
             "RULE",
-            "Spender",
+            "Konto",
             "Labels",
             "Datum",
             "Betrag",
@@ -93,7 +95,7 @@ def org_print(
                 f"[[{d.labels_src[0].filepath}::{d.labels_src[0].linenumber}][rule]]"
                 if d.labels_src
                 else "",
-                d.account.spender,
+                d.account.name,
                 d.labels,
                 d.date.strftime("%Y-%m-%d"),
                 (1 - 2 * int(invert)) * d.value / 100,
@@ -132,7 +134,7 @@ class Monitor:
 
         return data
 
-    def labels_in_use(self, query: RecordQuery) -> List[Tuple[str, int]]:
+    def labels_in_use(self, query: RecordQuery) -> List[str]:
         labels = []
         for d in self.catlist(
             labels=query.labels,
@@ -142,14 +144,16 @@ class Monitor:
         ):
             labels.extend(d.labels)
 
+        return labels
+
+    def org_labels(self, query: RecordQuery) -> List[List[str]]:
+        labels = self.labels_in_use(query)
+
         labels_count = []
         for l in list(set(labels)):
             labels_count.append((l, labels.count(l)))
 
-        return labels_count
-
-    def org_labels(self, query: RecordQuery) -> List[List[str]]:
-        return sorted(self.labels_in_use(query), key=lambda x: x[1])
+        return sorted(labels_count, key=lambda x: x[1])
 
     def org_list(
         self,
@@ -274,8 +278,9 @@ class Monitor:
             for d in self.data()
             if (not labels or set(labels).intersection(d.labels))
             and (not exclude_labels or not set(exclude_labels).intersection(d.labels))
-            # and not SKIP_LABEL in d.labels
-            and check_spender(d) and d.date > startdate and d.date < enddate
+            and check_spender(d)
+            and d.date >= startdate
+            and d.date < enddate
         ]
         return catdata
 
@@ -301,7 +306,6 @@ class Monitor:
             labels=query.labels,
             startdate=query.startdate,
             enddate=query.enddate,
-            invert=True,
         )
 
         priv_labels = [prefix_label(l, query.spender) for l in query.labels]
@@ -309,7 +313,6 @@ class Monitor:
             labels=priv_labels,
             startdate=query.startdate,
             enddate=query.enddate,
-            invert=True,
         )
 
         sum = common_expenses / 2 + priv_expenses
