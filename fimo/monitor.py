@@ -73,11 +73,28 @@ def org_print(
     truncate: Optional[int] = 60,
     invert: bool = False,
 ) -> List[List[str]]:
-    out = []
+    out = [
+        [
+            "SRC",
+            "RULE",
+            "Spender",
+            "Labels",
+            "Datum",
+            "Betrag",
+            "Name",
+            "Zweck",
+            "Kommentar",
+        ]
+    ]
     for d in data:
         out.append(
             [
+                f"[[{d.src.filepath}::{d.src.linenumber}][src]]",
+                f"[[{d.labels_src[0].filepath}::{d.labels_src[0].linenumber}][rule]]"
+                if d.labels_src
+                else "",
                 d.account.spender,
+                d.labels,
                 d.date.strftime("%Y-%m-%d"),
                 (1 - 2 * int(invert)) * d.value / 100,
                 _truncate_string(d.receiver, truncate),
@@ -118,7 +135,10 @@ class Monitor:
     def labels_in_use(self, query: RecordQuery) -> List[Tuple[str, int]]:
         labels = []
         for d in self.catlist(
-            labels=query.labels, spender=query.spender, startdate=query.startdate, enddate=query.enddate
+            labels=query.labels,
+            spender=query.spender,
+            startdate=query.startdate,
+            enddate=query.enddate,
         ):
             labels.extend(d.labels)
 
@@ -138,7 +158,12 @@ class Monitor:
         sort_field: Optional[SortField] = None,
         sort_reverse: bool = False,
     ) -> List[List[str]]:
-        data = self.catlist(labels=query.labels, spender=query.spender, startdate=query.startdate, enddate=query.enddate)
+        data = self.catlist(
+            labels=query.labels,
+            spender=query.spender,
+            startdate=query.startdate,
+            enddate=query.enddate,
+        )
         return org_print(
             sort_records(data, field=sort_field, reverse=sort_reverse),
             truncate=truncate,
@@ -219,12 +244,13 @@ class Monitor:
                 query.enddate,
                 invert=query.invert,
             )
-            ax.stem(
-                dates,
-                sums,
-                label=query.plotlabel if query.plotlabel else f"{i}",
-                markerfmt=["o", "P", "X", "v", "^"][i],
-            )
+            if dates:
+                ax.stem(
+                    dates,
+                    sums,
+                    label=query.plotlabel if query.plotlabel else f"{i}",
+                    markerfmt=["o", "P", "X", "v", "^"][i],
+                )
 
         ax.legend()
         fig.set_size_inches(FIGSIZE)
@@ -266,9 +292,32 @@ class Monitor:
         )
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
 
+    def privateSum(self, query: RecordQuery) -> float:
+        """
+        Persönliche Bilanz für query.spender. Es werden alle Kategorien in query.labels aus gemeinsamer und persönlicher Sicht betrachtet.
+        """
+        # Gemeinsame Ausgaben
+        common_expenses = self.sum(
+            labels=query.labels,
+            startdate=query.startdate,
+            enddate=query.enddate,
+            invert=True,
+        )
+
+        priv_labels = [prefix_label(l, query.spender) for l in query.labels]
+        priv_expenses = self.sum(
+            labels=priv_labels,
+            startdate=query.startdate,
+            enddate=query.enddate,
+            invert=True,
+        )
+
+        sum = common_expenses / 2 + priv_expenses
+        return sum
+
     def compareLM(self, query: RecordQuery) -> float:
         """
-        Vergleiche aus sich von query.spender. Ausgaben der Kategorien in query.labels werden aufgeteilt.
+        Vergleiche aus Sicht von query.spender. Ausgaben der Kategorien in query.labels werden aufgeteilt.
 
         Einkommen wird nicht explizit angerechnet. Transfer Leistungen dagegen schon.
         """
@@ -320,7 +369,9 @@ class Monitor:
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
-        allcatdata = sort_records(self.catlist(labels=labels, spender=spender), field=SortField.DATE)
+        allcatdata = sort_records(
+            self.catlist(labels=labels, spender=spender), field=SortField.DATE
+        )
         if not allcatdata:
             return ([], [])
 
@@ -336,7 +387,10 @@ class Monitor:
         plotdays = []
         for i in range(len(stepdays) - 1):
             catdata = self.catlist(
-                labels=labels, spender=spender, startdate=stepdays[i].date(), enddate=stepdays[i + 1].date()
+                labels=labels,
+                spender=spender,
+                startdate=stepdays[i].date(),
+                enddate=stepdays[i + 1].date(),
             )
             catsums.append(
                 (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100

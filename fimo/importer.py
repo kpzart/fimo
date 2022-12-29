@@ -11,9 +11,10 @@ from pathlib import Path
 
 LABEL_HEADING = "KPZ_Label"
 COMMENT_HEADING = "KPZ_Comment"
+RULE_SRC = "RULE_SRC"
 
 
-def _remove_stuff_before_header(lines):
+def _remove_stuff_before_header(lines) -> int:
     # remove stuff before header line, it's separated by a blank line
     found = False
     for i, line in enumerate(lines[15::-1]):
@@ -21,8 +22,12 @@ def _remove_stuff_before_header(lines):
             found = True
             break
 
+    k = 0
     if found:
-        del lines[: 15 - i + 1]
+        k = 15 - i + 1
+        del lines[:k]
+
+    return k + 1
 
 
 class Account(BaseModel):
@@ -38,6 +43,11 @@ class Account(BaseModel):
     labelled: bool = False
 
 
+class RecordSource(BaseModel):
+    filepath: Path
+    linenumber: int
+
+
 class AccountRecord(BaseModel):
     """Repräsentiert einen Eintrag aus einem Kontoauszug oder einen manuellen Finanzvorgang."""
 
@@ -49,6 +59,8 @@ class AccountRecord(BaseModel):
     purpose: str
     labels: List[str]
     comment: List[str]
+    src: RecordSource
+    labels_src: List[RecordSource]
 
 
 REGEX_RULE_FILENAME = "regexrules.csv"
@@ -114,9 +126,9 @@ class AccountImporter:
                 previewdir.mkdir()
 
             # read the regex rule file
-            rulefilename = rulesdir.joinpath(REGEX_RULE_FILENAME)
-            if rulefilename.exists():
-                regex_rule_reader = CSVReader(rulefilename, delimiter=";")
+            self._regexrulesfilepath = rulesdir.joinpath(REGEX_RULE_FILENAME)
+            if self._regexrulesfilepath.exists():
+                regex_rule_reader = CSVReader(self._regexrulesfilepath, delimiter=";")
                 self._regex_rules = [row for row in regex_rule_reader]
             else:
                 self._regex_rules = []
@@ -133,7 +145,9 @@ def _has_duplicates(alist: List):
     return len(set(alist)) != len(alist)
 
 
-def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: bool):
+def _apply_rules(
+    adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: bool, rulespath: Path
+):
     """
     Beware: Empty String in pattern matches everything, even without regex_cmp
     """
@@ -144,7 +158,7 @@ def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: boo
         else:
             return rule == text
 
-    for rule in rules:
+    for i, rule in enumerate(rules):
         comparisons = [
             compare_strings(rule[field], adict[field])
             for field in rule.keys()
@@ -160,6 +174,13 @@ def _apply_rules(adict: Dict, rules: List[Dict], regex_cmp: bool, overwrite: boo
                 adict[COMMENT_HEADING] += "," + rule[COMMENT_HEADING]
             else:
                 adict[COMMENT_HEADING] = rule[COMMENT_HEADING]
+
+            if RULE_SRC in adict and adict[RULE_SRC] and not overwrite:
+                adict[RULE_SRC].append(
+                    RecordSource(filepath=rulespath, linenumber=i + 2)
+                )
+            else:
+                adict[RULE_SRC] = [RecordSource(filepath=rulespath, linenumber=i + 2)]
 
 
 class FileImporter:
@@ -187,7 +208,7 @@ class FileImporter:
         return self._data
 
     def _normalize(self, rows: List[Dict]) -> List[AccountRecord]:
-        return [
+        result = [
             AccountRecord(
                 account=self._account_importer._account,
                 spender=self._account_importer._account.spender,
@@ -203,9 +224,19 @@ class FileImporter:
                 purpose=row.get(self._account_importer._account.heading_purpose, ""),
                 comment=row[COMMENT_HEADING].split(","),
                 labels=row[LABEL_HEADING].split(","),
+                src=RecordSource(
+                    filepath=self._filepath, linenumber=i + self._n_skipped_lines + 1
+                ),
+                labels_src=row[RULE_SRC] if RULE_SRC in row else [],
             )
-            for row in rows
+            for i, row in enumerate(rows)
         ]
+
+        for row in rows:
+            if RULE_SRC in row:
+                del row[RULE_SRC]
+
+        return result
 
     def _import(self) -> List[Dict]:
         with open(
@@ -213,7 +244,7 @@ class FileImporter:
         ) as f:
             lines = f.readlines()
 
-        _remove_stuff_before_header(lines)
+        self._n_skipped_lines = _remove_stuff_before_header(lines)
         if _has_duplicates(lines):
             raise FimoException(f"Found duplicates in file {self._filepath}")
 
@@ -230,14 +261,20 @@ class FileImporter:
             for r in rows:
                 r[LABEL_HEADING] = ""
                 r[COMMENT_HEADING] = ""
-                _apply_rules(r, self._account_importer._regex_rules, True, True)
+                _apply_rules(
+                    r,
+                    self._account_importer._regex_rules,
+                    True,
+                    True,
+                    self._account_importer._regexrulesfilepath,
+                )
 
             nonregex_rules = self._create_or_update_nonregex_rule_file(
                 rows, reader.fieldnames
             )
 
             for r in rows:
-                _apply_rules(r, nonregex_rules, False, True)
+                _apply_rules(r, nonregex_rules, False, True, self._rulefilepath)
 
         return rows
 
