@@ -215,6 +215,78 @@ class Monitor:
         plt.savefig(filename)
         return filename
 
+    def org_catsumsplot(self, queries: List[RecordQuery], filename: str):
+        fig, ax = plt.subplots()
+        sums = []
+        sums_total = []
+        labels = []
+        for query in queries:
+            c_sum = self.sum(
+                labels=query.labels,
+                spender=query.spender,
+                startdate=query.startdate,
+                enddate=query.enddate,
+                invert=query.invert,
+            )
+            sums.append(c_sum)
+            labels.append(query.labels if c_sum else "")
+
+            l_labels = [prefix_label(l, "Martin") for l in query.labels]
+            l_sum = self.sum(
+                labels=l_labels,
+                spender=query.spender,
+                startdate=query.startdate,
+                enddate=query.enddate,
+                invert=query.invert,
+            )
+            sums.append(l_sum)
+            labels.append(l_labels if l_sum else "")
+
+            m_labels = [prefix_label(l, "Liane") for l in query.labels]
+            m_sum = self.sum(
+                labels=m_labels,
+                spender=query.spender,
+                startdate=query.startdate,
+                enddate=query.enddate,
+                invert=query.invert,
+            )
+            sums.append(m_sum)
+            labels.append(m_labels if m_sum else "")
+
+            sums_total.append(c_sum + l_sum + m_sum)
+
+        inner_steps = numpy.arange(5) * 4
+        outer_steps = [i for i in numpy.arange(20) if not i % 4 == 0]
+        cmap1 = plt.colormaps["tab20b"]
+        cmap2 = plt.colormaps["tab20c"]
+        inner_colors = numpy.concatenate((cmap1(inner_steps), cmap2(inner_steps)))
+        outer_colors = numpy.concatenate((cmap1(outer_steps), cmap2(outer_steps)))
+
+        sumsum = numpy.sum(sums)
+
+        ax.pie(
+            sums,
+            labels=labels,
+            autopct=lambda pct: f"{(pct / 100 * sumsum):,.2f} €",
+            radius=1,
+            wedgeprops=dict(width=0.3, edgecolor="w"),
+            colors=outer_colors,
+        )
+        ax.pie(
+            sums_total,
+            autopct=lambda pct: f"{(pct / 100 * sumsum):,.2f} €",
+            radius=0.7,
+            wedgeprops=dict(width=0.3, edgecolor="w"),
+            colors=inner_colors,
+        )
+        ax.axis("equal")
+        ax.set_title(f"Total {sumsum:,.2f} €")
+
+        fig.set_size_inches(FIGSIZE)
+        fig.tight_layout()
+        plt.savefig(filename)
+        return filename
+
     def org_catsumplot(self, queries: List[RecordQuery], filename: str):
         fig, ax = plt.subplots()
         for i, query in enumerate(queries):
