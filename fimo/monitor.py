@@ -79,13 +79,14 @@ def org_print(
         [
             "SRC",
             "RULE",
-            "Konto",
-            "Labels",
+            "PRE",
             "Datum",
             "Betrag",
+            "Konto",
+            "Labels",
+            "Kommentar",
             "Name",
             "Zweck",
-            "Kommentar",
         ]
     ]
     for d in data:
@@ -95,13 +96,14 @@ def org_print(
                 f"[[{d.labels_src[0].filepath}::{d.labels_src[0].linenumber}][rule]]"
                 if d.labels_src
                 else "",
-                d.account.name,
-                d.labels,
+                f"[[{d.preview_src.filepath}::{d.preview_src.linenumber}][pre]]",
                 d.date.strftime("%Y-%m-%d"),
                 (1 - 2 * int(invert)) * d.value / 100,
+                d.account.name,
+                d.labels[0] if d.labels else "",
+                _truncate_string(d.comment[0] if d.comment else "", truncate),
                 _truncate_string(d.receiver, truncate),
                 _truncate_string(d.purpose, truncate),
-                _truncate_string(d.comment, truncate),
             ]
         )
 

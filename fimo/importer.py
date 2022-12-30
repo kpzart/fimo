@@ -60,6 +60,7 @@ class AccountRecord(BaseModel):
     labels: List[str]
     comment: List[str]
     src: RecordSource
+    preview_src: Optional[RecordSource]
     labels_src: List[RecordSource]
 
 
@@ -227,6 +228,11 @@ class FileImporter:
                 src=RecordSource(
                     filepath=self._filepath, linenumber=i + self._n_skipped_lines + 1
                 ),
+                preview_src=RecordSource(
+                    filepath=self._previewfilepath, linenumber=i + 2
+                )
+                if not self._account_importer._account.labelled
+                else None,
                 labels_src=row[RULE_SRC] if RULE_SRC in row else [],
             )
             for i, row in enumerate(rows)
