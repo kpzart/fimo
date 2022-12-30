@@ -221,37 +221,52 @@ class Monitor:
         sums_total = []
         labels = []
         for query in queries:
-            c_sum = self.sum(
-                labels=query.labels,
-                spender=query.spender,
-                startdate=query.startdate,
-                enddate=query.enddate,
-                invert=query.invert,
+            c_sum = numpy.max(
+                (
+                    0,
+                    self.sum(
+                        labels=query.labels,
+                        spender=query.spender,
+                        startdate=query.startdate,
+                        enddate=query.enddate,
+                        invert=query.invert,
+                    ),
+                )
             )
             sums.append(c_sum)
-            labels.append(query.labels if c_sum else "")
+            labels.append(", ".join(query.labels) if c_sum else "")
 
             l_labels = [prefix_label(l, "Martin") for l in query.labels]
-            l_sum = self.sum(
-                labels=l_labels,
-                spender=query.spender,
-                startdate=query.startdate,
-                enddate=query.enddate,
-                invert=query.invert,
+            l_sum = numpy.max(
+                (
+                    0,
+                    self.sum(
+                        labels=l_labels,
+                        spender=query.spender,
+                        startdate=query.startdate,
+                        enddate=query.enddate,
+                        invert=query.invert,
+                    ),
+                )
             )
             sums.append(l_sum)
-            labels.append(l_labels if l_sum else "")
+            labels.append(", ".join(l_labels) if l_sum else "")
 
             m_labels = [prefix_label(l, "Liane") for l in query.labels]
-            m_sum = self.sum(
-                labels=m_labels,
-                spender=query.spender,
-                startdate=query.startdate,
-                enddate=query.enddate,
-                invert=query.invert,
+            m_sum = numpy.max(
+                (
+                    0,
+                    self.sum(
+                        labels=m_labels,
+                        spender=query.spender,
+                        startdate=query.startdate,
+                        enddate=query.enddate,
+                        invert=query.invert,
+                    ),
+                )
             )
             sums.append(m_sum)
-            labels.append(m_labels if m_sum else "")
+            labels.append(", ".join(m_labels) if m_sum else "")
 
             sums_total.append(c_sum + l_sum + m_sum)
 
@@ -267,7 +282,7 @@ class Monitor:
         ax.pie(
             sums,
             labels=labels,
-            autopct=lambda pct: f"{(pct / 100 * sumsum):,.2f} €",
+            # autopct=lambda pct: f"{(pct / 100 * sumsum):,.2f} €",
             radius=1,
             wedgeprops=dict(width=0.3, edgecolor="w"),
             colors=outer_colors,
