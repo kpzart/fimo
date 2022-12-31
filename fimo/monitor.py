@@ -96,7 +96,9 @@ def org_print(
                 f"[[{d.labels_src[0].filepath}::{d.labels_src[0].linenumber}][rule]]"
                 if d.labels_src
                 else "",
-                f"[[{d.preview_src.filepath}::{d.preview_src.linenumber}][pre]]",
+                f"[[{d.preview_src.filepath}::{d.preview_src.linenumber}][pre]]"
+                if d.preview_src
+                else "",
                 d.date.strftime("%Y-%m-%d"),
                 (1 - 2 * int(invert)) * d.value / 100,
                 d.account.name,
