@@ -285,19 +285,19 @@ class Monitor:
             sums,
             labels=labels,
             # autopct=lambda pct: f"{(pct / 100 * sumsum):,.2f} €",
-            radius=1,
+            radius=0.8,
             wedgeprops=dict(width=0.3, edgecolor="w"),
             colors=outer_colors,
         )
         ax.pie(
             sums_total,
             autopct=lambda pct: f"{(pct / 100 * sumsum):,.2f} €",
-            radius=0.7,
+            radius=0.5,
             wedgeprops=dict(width=0.3, edgecolor="w"),
             colors=inner_colors,
         )
         ax.axis("equal")
-        ax.set_title(f"Total {sumsum:,.2f} €")
+        # ax.set_title(f"Total {sumsum:,.2f} €")
 
         fig.set_size_inches(FIGSIZE)
         fig.tight_layout()
@@ -376,13 +376,18 @@ class Monitor:
     def sum(
         self,
         labels: Optional[List[str]] = None,
+        exclude_labels: Optional[List[str]] = None,
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> float:
         catdata = self.catlist(
-            labels=labels, spender=spender, startdate=startdate, enddate=enddate
+            labels=labels,
+            exclude_labels=exclude_labels,
+            spender=spender,
+            startdate=startdate,
+            enddate=enddate,
         )
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
 
@@ -415,33 +420,37 @@ class Monitor:
         """
         # Ausgaben von spender
         expenses_spender = self.sum(
-            query.labels, query.spender, query.startdate, query.enddate, invert=True
+            labels=query.labels,
+            spender=query.spender,
+            startdate=query.startdate,
+            enddate=query.enddate,
+            invert=True,
         )
 
         # Ausgaben des anderen
         expenses_other = self.sum(
-            query.labels,
-            other_spender(query.spender),
-            query.startdate,
-            query.enddate,
+            labels=query.labels,
+            spender=other_spender(query.spender),
+            startdate=query.startdate,
+            enddate=query.enddate,
             invert=True,
         )
 
         # Transfer Ausgaben
         transfer_spender = self.sum(
-            prefix_label("TRANSFER", query.spender),
-            query.spender,
-            query.startdate,
-            query.enddate,
+            labels=prefix_label("TRANSFER", query.spender),
+            spender=query.spender,
+            startdate=query.startdate,
+            enddate=query.enddate,
             invert=True,
         )
 
         # Transfer Einnahmen
         transfer_other = self.sum(
-            prefix_label("TRANSFER", other_spender(query.spender)),
-            query.spender,
-            query.startdate,
-            query.enddate,
+            labels=prefix_label("TRANSFER", other_spender(query.spender)),
+            spender=query.spender,
+            startdate=query.startdate,
+            enddate=query.enddate,
             invert=True,
         )
 
