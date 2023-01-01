@@ -74,12 +74,10 @@ def org_print(
     data: List[importer.AccountRecord],
     truncate: Optional[int] = 60,
     invert: bool = False,
+    with_src_links: bool = True,
 ) -> List[List[str]]:
     out = [
         [
-            "SRC",
-            "RULE",
-            "PRE",
             "Datum",
             "Betrag",
             "Konto",
@@ -89,9 +87,27 @@ def org_print(
             "Zweck",
         ]
     ]
+
+    if with_src_links:
+        out[0] = [
+            "SRC",
+            "RULE",
+            "PRE",
+        ] + out[0]
+
     for d in data:
-        out.append(
-            [
+        entry = [
+            d.date.strftime("%Y-%m-%d"),
+            (1 - 2 * int(invert)) * d.value / 100,
+            d.account.name,
+            d.labels[0] if d.labels else "",
+            _truncate_string(d.comment[0] if d.comment else "", truncate),
+            _truncate_string(d.receiver, truncate),
+            _truncate_string(d.purpose, truncate),
+        ]
+
+        if with_src_links:
+            entry = [
                 f"[[{d.src.filepath}::{d.src.linenumber}][src]]",
                 f"[[{d.labels_src[0].filepath}::{d.labels_src[0].linenumber}][rule]]"
                 if d.labels_src
@@ -99,15 +115,9 @@ def org_print(
                 f"[[{d.preview_src.filepath}::{d.preview_src.linenumber}][pre]]"
                 if d.preview_src
                 else "",
-                d.date.strftime("%Y-%m-%d"),
-                (1 - 2 * int(invert)) * d.value / 100,
-                d.account.name,
-                d.labels[0] if d.labels else "",
-                _truncate_string(d.comment[0] if d.comment else "", truncate),
-                _truncate_string(d.receiver, truncate),
-                _truncate_string(d.purpose, truncate),
-            ]
-        )
+            ] + entry
+
+        out.append(entry)
 
     return out
 
@@ -165,6 +175,7 @@ class Monitor:
         truncate: Optional[int] = 60,
         sort_field: Optional[SortField] = None,
         sort_reverse: bool = False,
+        with_src_links: bool = True,
     ) -> List[List[str]]:
         data = self.catlist(
             labels=query.labels,
@@ -176,6 +187,7 @@ class Monitor:
             sort_records(data, field=sort_field, reverse=sort_reverse),
             truncate=truncate,
             invert=query.invert,
+            with_src_links=with_src_links,
         )
 
     def org_monthlycatsumplot(self, queries: List[RecordQuery], filename: str) -> str:
