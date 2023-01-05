@@ -72,7 +72,7 @@ def sort_records(
 
 def org_print(
     data: List[importer.AccountRecord],
-    truncate: Optional[int] = 60,
+    truncate: Optional[int] = 50,
     invert: bool = False,
     with_src_links: bool = True,
 ) -> List[List[str]]:
@@ -172,7 +172,7 @@ class Monitor:
     def org_list(
         self,
         query: RecordQuery,
-        truncate: Optional[int] = 60,
+        truncate: Optional[int] = 35,
         sort_field: Optional[SortField] = None,
         sort_reverse: bool = False,
         with_src_links: bool = True,
@@ -484,15 +484,6 @@ class Monitor:
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> Tuple[List[date], List[float]]:
-        allcatdata = sort_records(
-            self.catlist(labels=labels, spender=spender), field=SortField.DATE
-        )
-        if not allcatdata:
-            return ([], [])
-
-        startdate = startdate if startdate > allcatdata[0].date else allcatdata[0].date
-        enddate = enddate if enddate < allcatdata[-1].date else allcatdata[-1].date
-
         stepdays = list(rrule.rrule(rrule.MONTHLY, dtstart=startdate, until=enddate))
 
         if len(stepdays) < 1:
