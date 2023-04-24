@@ -23,6 +23,10 @@ def prefix_label(label: str, spender: str):
     return PREFIXES[spender] + "_" + label
 
 
+def org_verbatim(text):
+    return f"={text}="
+
+
 class SortField(Enum):
     SPENDER = 0
     DATE = 1
@@ -78,21 +82,23 @@ def org_print(
 ) -> List[List[str]]:
     out = [
         [
-            "Datum",
-            "Betrag",
-            "Konto",
-            "Labels",
-            "Kommentar",
-            "Name",
-            "Zweck",
+            "*Datum*",
+            "*Betrag*",
+            "*Konto*",
+            "*Labels*",
+            "*Kommentar*",
+            "*Name*",
+            "*Zweck*",
         ]
     ]
 
+    out.append(None)
+
     if with_src_links:
         out[0] = [
-            "SRC",
-            "RULE",
-            "PRE",
+            "*SRC*",
+            "*RULE*",
+            "*PRE*",
         ] + out[0]
 
     for d in data:
@@ -100,7 +106,7 @@ def org_print(
             d.date.strftime("%Y-%m-%d"),
             (1 - 2 * int(invert)) * d.value / 100,
             d.account.name,
-            d.labels[0] if d.labels else "",
+            org_verbatim(d.labels[0]) if d.labels else "",
             _truncate_string(d.comment[0] if d.comment else "", truncate),
             _truncate_string(d.receiver, truncate),
             _truncate_string(d.purpose, truncate),
@@ -165,7 +171,7 @@ class Monitor:
 
         labels_count = []
         for l in list(set(labels)):
-            labels_count.append((l, labels.count(l)))
+            (labels_count.append((org_verbatim(l), labels.count(l))))
 
         return sorted(labels_count, key=lambda x: x[1])
 
