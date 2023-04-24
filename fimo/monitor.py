@@ -1,13 +1,14 @@
-from fimo import importer
-from typing import List, Optional, Tuple, Dict
-from enum import Enum
 from datetime import date, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy
 from dateutil import rrule
 from pydantic import BaseModel
 
-import numpy
-import matplotlib
-import matplotlib.pyplot as plt
+from fimo import importer
 
 SKIP_LABEL = "SKIP"
 FIGSIZE = [16, 9]
@@ -481,6 +482,23 @@ class Monitor:
             - transfer_other
         )
         return sum
+
+    def org_monthlycatsum_list(
+        self, queries: List[RecordQuery]
+    ) -> List[List[Tuple[str, float]]]:
+        results = []
+        for query in queries:
+            dates, sums = self.monthlycatsumplotdata(
+                query.labels,
+                query.spender,
+                query.startdate,
+                query.enddate,
+                invert=query.invert,
+            )
+
+            results.append(list(zip(dates, sums)))
+
+        return results
 
     def monthlycatsumplotdata(
         self,
