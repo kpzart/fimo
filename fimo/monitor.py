@@ -130,11 +130,11 @@ def org_print(
 
 
 class RecordQuery(BaseModel):
-    labels: Optional[List[str]]
-    spender: Optional[str]
     startdate: date = date(2000, 1, 31)
+    spender: Optional[str]
     enddate: date = date(2050, 1, 31)
     invert: bool = False
+    labels: Optional[List[str]]
     plotlabel: Optional[str]
 
 

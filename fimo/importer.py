@@ -1,13 +1,14 @@
 import csv
-import re
-import glob
-import shutil
-from typing import List, Dict, Optional
 import datetime
+import glob
+import re
+import shutil
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel
 
 from fimo.exception import FimoException
-from pydantic import BaseModel
-from pathlib import Path
 
 LABEL_HEADING = "KPZ_Label"
 COMMENT_HEADING = "KPZ_Comment"
@@ -292,37 +293,41 @@ class FileImporter:
             )
 
     def _create_or_update_nonregex_rule_file(self, rows, fieldnames):
-        nonregex_rules = []
-        if self._rulefilepath.exists():
-            reader = CSVReader(self._rulefilepath, delimiter=";")
-            nonregex_rules = [row for row in reader]
+        try:
+            nonregex_rules = []
+            if self._rulefilepath.exists():
+                reader = CSVReader(self._rulefilepath, delimiter=";")
+                nonregex_rules = [row for row in reader]
 
-        sortedfieldnames = self._account_importer._create_rule_file_fieldnames(
-            fieldnames
-        )
-
-        with open(self._rulefilepath, "w") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=sortedfieldnames, delimiter=";", quoting=csv.QUOTE_ALL
+            sortedfieldnames = self._account_importer._create_rule_file_fieldnames(
+                fieldnames
             )
-            writer.writeheader()
 
-            rows_remaining = rows.copy()
-            for row in nonregex_rules:
-                if row[LABEL_HEADING] or row[COMMENT_HEADING]:
-                    writer.writerow(row)
+            with open(self._rulefilepath, "w") as f:
+                writer = csv.DictWriter(
+                    f, fieldnames=sortedfieldnames, delimiter=";", quoting=csv.QUOTE_ALL
+                )
+                writer.writeheader()
 
-                    orig_row = row.copy()
-                    orig_row[LABEL_HEADING] = ""
-                    orig_row[COMMENT_HEADING] = ""
-                    if orig_row in rows_remaining:
-                        rows_remaining.remove(orig_row)
+                rows_remaining = rows.copy()
+                for row in nonregex_rules:
+                    if row[LABEL_HEADING] or row[COMMENT_HEADING]:
+                        writer.writerow(row)
 
-            for row in rows_remaining:
-                if not row[LABEL_HEADING] and not row[COMMENT_HEADING]:
-                    writer.writerow(row)
+                        orig_row = row.copy()
+                        orig_row[LABEL_HEADING] = ""
+                        orig_row[COMMENT_HEADING] = ""
+                        if orig_row in rows_remaining:
+                            rows_remaining.remove(orig_row)
 
-        return nonregex_rules
+                for row in rows_remaining:
+                    if not row[LABEL_HEADING] and not row[COMMENT_HEADING]:
+                        writer.writerow(row)
+
+            return nonregex_rules
+
+        except Exception as e:
+            raise Exception(f"Error in {self._rulefilepath}: {e}")
 
     def _write_preview_file(self, rows: List[Dict]):
         sortedfieldnames = self._account_importer._create_rule_file_fieldnames(
