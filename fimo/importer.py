@@ -19,7 +19,7 @@ def _remove_stuff_before_header(lines) -> int:
     # remove stuff before header line, it's separated by a blank line
     found = False
     for i, line in enumerate(lines[15::-1]):
-        if line == "\n":
+        if line == "\n" or line == '""\n':
             found = True
             break
 
@@ -42,6 +42,7 @@ class Account(BaseModel):
     heading_receiver: str
     heading_purpose: str
     labelled: bool = False
+    date_format: str = "%d.%m.%Y"
 
 
 class RecordSource(BaseModel):
@@ -215,7 +216,8 @@ class FileImporter:
                 account=self._account_importer._account,
                 spender=self._account_importer._account.spender,
                 date=datetime.datetime.strptime(
-                    row[self._account_importer._account.heading_date], "%d.%m.%Y"
+                    row[self._account_importer._account.heading_date],
+                    self._account_importer._account.date_format
                 ).date(),
                 value=int(
                     row[self._account_importer._account.heading_value]
