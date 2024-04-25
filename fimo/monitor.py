@@ -33,8 +33,9 @@ class SortField(Enum):
     DATE = 1
     VALUE = 2
     RECEIVER = 3
-    PURPOSE = 4
-    COMMENT = 5
+    PAYER = 4
+    PURPOSE = 5
+    COMMENT = 6
 
 
 def _truncate_string(str_input: str, max_length: Optional[int]):
@@ -60,6 +61,8 @@ def sort_records(
             result = x.value
         elif field == SortField.RECEIVER:
             result = x.receiver
+        elif field == SortField.PAYER:
+            result = x.payer
         elif field == SortField.PURPOSE:
             result = x.purpose
         elif field == SortField.COMMENT:
@@ -88,7 +91,8 @@ def org_print(
             "*Konto*",
             "*Labels*",
             "*Kommentar*",
-            "*Name*",
+            "*Empfänger*",
+            "*Begünstigter*",
             "*Zweck*",
         ]
     ]
@@ -110,6 +114,7 @@ def org_print(
             org_verbatim(d.labels[0]) if d.labels else "",
             _truncate_string(d.comment[0] if d.comment else "", truncate),
             _truncate_string(d.receiver, truncate),
+            _truncate_string(d.payer, truncate),
             _truncate_string(d.purpose, truncate),
         ]
 

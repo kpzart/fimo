@@ -40,6 +40,7 @@ class Account(BaseModel):
     heading_date: str
     heading_value: str
     heading_receiver: str
+    heading_payer: str
     heading_purpose: str
     labelled: bool = False
     date_format: str = "%d.%m.%Y"
@@ -58,6 +59,7 @@ class AccountRecord(BaseModel):
     spender: str
     value: int
     receiver: str
+    payer: str
     purpose: str
     labels: List[str]
     comment: List[str]
@@ -103,6 +105,7 @@ class AccountImporter:
             self._account.heading_date,
             self._account.heading_value,
             self._account.heading_receiver,
+            self._account.heading_payer,
             self._account.heading_purpose,
         ]:
             if l in fieldnames_copy:
@@ -210,6 +213,11 @@ class FileImporter:
     def data(self) -> List[AccountRecord]:
         return self._data
 
+    def _get_row_value(self, row):
+        val_str = row[self._account_importer._account.heading_value].replace(".", "")
+        val_str = val_str.replace(",", "") if "," in val_str else val_str + "00"
+        return int(val_str)
+
     def _normalize(self, rows: List[Dict]) -> List[AccountRecord]:
         result = [
             AccountRecord(
@@ -217,14 +225,11 @@ class FileImporter:
                 spender=self._account_importer._account.spender,
                 date=datetime.datetime.strptime(
                     row[self._account_importer._account.heading_date],
-                    self._account_importer._account.date_format
+                    self._account_importer._account.date_format,
                 ).date(),
-                value=int(
-                    row[self._account_importer._account.heading_value]
-                    .replace(",", "")
-                    .replace(".", "")
-                ),
+                value=self._get_row_value(row),
                 receiver=row.get(self._account_importer._account.heading_receiver, ""),
+                payer=row.get(self._account_importer._account.heading_payer, ""),
                 purpose=row.get(self._account_importer._account.heading_purpose, ""),
                 comment=row[COMMENT_HEADING].split(","),
                 labels=row[LABEL_HEADING].split(","),
