@@ -442,55 +442,63 @@ class Monitor:
         sum = common_expenses / 2 + priv_expenses
         return sum
 
-    def compareLM(self, query: RecordQuery) -> float:
+    def compensation(
+        self,
+        spender: str,
+        compensated_labels: list[str],
+        transfer_labels: list[str],
+        startdate: date,
+        enddate: date,
+    ) -> float:
         """
-        Vergleiche aus Sicht von query.spender. Ausgaben der Kategorien in query.labels werden aufgeteilt.
+        Berechnet den Ausgleich aus Sicht von spender.
+
+        Ausgaben der Kategorien in compensated_labels werden aufgeteilt.
 
         Einkommen wird nicht explizit angerechnet. Transfer Leistungen dagegen schon.
+
+        Ausgleich = faire Bilanz - tatsächliche Bilanz + gezahlter Transfer
+        Faire Bilanz = private Bilanz + gemeinsame Bilanz / 2
+        gemeinsame Bilanz = gemeinsames Einkommen - gemeinsame Kosten
+        private Bilanz = privates Einkommen - private Ausgaben
+        Tatsächliche Bilanz = Eingänge - Ausgänge
         """
-        # Ausgaben von spender
-        expenses_spender = self.sum(
-            labels=query.labels,
-            spender=query.spender,
-            startdate=query.startdate,
-            enddate=query.enddate,
+        real_balance_m_query = RecordQuery(
+            spender=spender,
+            labels=compensated_labels
+            + [f"{prefix_label(l, spender)}" for l in compensated_labels]
+            + [
+                f"{prefix_label(l, other_spender(spender))}" for l in compensated_labels
+            ],
+            startdate=startdate,
+            enddate=enddate,
+        )
+        real_balance_m = self.sum_query(real_balance_m_query)
+        private_balance_m_query = RecordQuery(
+            labels=[f"{prefix_label(l, spender)}" for l in compensated_labels],
+            startdate=startdate,
+            enddate=enddate,
+        )
+        private_balance_m = self.sum_query(private_balance_m_query)
+        common_balance_query = RecordQuery(
+            labels=compensated_labels,
+            startdate=startdate,
+            enddate=enddate,
+        )
+        common_balance = self.sum_query(common_balance_query)
+        fair_balance_m = private_balance_m + common_balance / 2
+        transfer_m_query = RecordQuery(
+            labels=transfer_labels
+            + [f"{prefix_label(l, spender)}" for l in transfer_labels]
+            + [f"{prefix_label(l, other_spender(spender))}" for l in transfer_labels],
+            spender=spender,
+            startdate=startdate,
+            enddate=enddate,
             invert=True,
         )
-
-        # Ausgaben des anderen
-        expenses_other = self.sum(
-            labels=query.labels,
-            spender=other_spender(query.spender),
-            startdate=query.startdate,
-            enddate=query.enddate,
-            invert=True,
-        )
-
-        # Transfer Ausgaben
-        transfer_spender = self.sum(
-            labels=prefix_label("TRANSFER", query.spender),
-            spender=query.spender,
-            startdate=query.startdate,
-            enddate=query.enddate,
-            invert=True,
-        )
-
-        # Transfer Einnahmen
-        transfer_other = self.sum(
-            labels=prefix_label("TRANSFER", other_spender(query.spender)),
-            spender=query.spender,
-            startdate=query.startdate,
-            enddate=query.enddate,
-            invert=True,
-        )
-
-        sum = (
-            expenses_spender
-            - (expenses_spender + expenses_other) / 2
-            + transfer_spender
-            - transfer_other
-        )
-        return sum
+        transfer_m = self.sum_query(transfer_m_query)
+        compensation_m = fair_balance_m - real_balance_m + transfer_m
+        return compensation_m
 
     def org_monthlycatsum_list(
         self, queries: List[RecordQuery]
