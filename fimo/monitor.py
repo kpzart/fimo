@@ -135,11 +135,11 @@ def org_print(
 
 
 class RecordQuery(BaseModel):
-    startdate: date = date(2000, 1, 31)
+    labels: Optional[List[str]]
     spender: Optional[str]
+    startdate: date = date(2000, 1, 31)
     enddate: date = date(2050, 1, 31)
     invert: bool = False
-    labels: Optional[List[str]]
     plotlabel: Optional[str]
 
 
@@ -252,13 +252,7 @@ class Monitor:
             c_sum = numpy.max(
                 (
                     0,
-                    self.sum(
-                        labels=query.labels,
-                        spender=query.spender,
-                        startdate=query.startdate,
-                        enddate=query.enddate,
-                        invert=query.invert,
-                    ),
+                    self.sum_query(query),
                 )
             )
             sums.append(c_sum)
@@ -408,6 +402,7 @@ class Monitor:
         enddate: date = date(2050, 1, 31),
         invert: bool = False,
     ) -> float:
+        """Summiert alle Einträge mit den gewünschten Labels."""
         catdata = self.catlist(
             labels=labels,
             exclude_labels=exclude_labels,
@@ -416,6 +411,15 @@ class Monitor:
             enddate=enddate,
         )
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
+
+    def sum_query(self, query: RecordQuery) -> float:
+        return self.sum(
+            labels=query.labels,
+            spender=query.spender,
+            startdate=query.startdate,
+            enddate=query.enddate,
+            invert=query.invert,
+        )
 
     def privateSum(self, query: RecordQuery) -> float:
         """
