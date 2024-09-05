@@ -139,6 +139,7 @@ class RecordQuery(BaseModel):
     spender: Optional[str]
     startdate: date = date(2000, 1, 31)
     enddate: date = date(2050, 1, 31)
+    value: float | None = None
     invert: bool = False
     plotlabel: Optional[str]
 
@@ -153,7 +154,7 @@ class Monitor:
             if imp.import_errors():
                 print(f"Warning: {imp.import_errors()[0]}")
 
-    def data(self):
+    def data(self) -> List["AccountRecord"]:
         data = []
         for imp in self._importers:
             data.extend(imp.data())
@@ -194,6 +195,7 @@ class Monitor:
             spender=query.spender,
             startdate=query.startdate,
             enddate=query.enddate,
+            value=query.value,
         )
         return org_print(
             sort_records(data, field=sort_field, reverse=sort_reverse),
@@ -378,6 +380,7 @@ class Monitor:
         spender: Optional[str] = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
+        value: float | None = None,
     ) -> List[importer.AccountRecord]:
         def check_spender(d: importer.AccountRecord):
             return spender is None or d.spender == spender
@@ -390,6 +393,11 @@ class Monitor:
             and check_spender(d)
             and d.date >= startdate
             and d.date < enddate
+            and (
+                not value
+                or d.value == round(value * 100)
+                or d.value == -round(value * 100)
+            )
         ]
         return catdata
 
@@ -400,6 +408,7 @@ class Monitor:
         spender: Optional = None,
         startdate: date = date(2000, 1, 31),
         enddate: date = date(2050, 1, 31),
+        value: float | None = None,
         invert: bool = False,
     ) -> float:
         """Summiert alle Einträge mit den gewünschten Labels."""
@@ -409,6 +418,7 @@ class Monitor:
             spender=spender,
             startdate=startdate,
             enddate=enddate,
+            value=value,
         )
         return (1 - 2 * int(invert)) * sum([d.value for d in catdata]) / 100
 
