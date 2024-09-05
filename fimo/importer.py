@@ -215,7 +215,10 @@ class FileImporter:
 
     def _get_row_value(self, row):
         val_str = row[self._account_importer._account.heading_value].replace(".", "")
-        val_str = val_str.replace(",", "") if "," in val_str else val_str + "00"
+        if re.match("-?[0-9]+,[0-9]$", val_str):
+            val_str = val_str.replace(",", "") + "0"
+        else:
+            val_str = val_str.replace(",", "") if "," in val_str else val_str + "00"
         return int(val_str)
 
     def _normalize(self, rows: List[Dict]) -> List[AccountRecord]:
