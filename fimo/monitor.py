@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt

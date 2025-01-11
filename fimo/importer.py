@@ -274,24 +274,29 @@ class FileImporter:
 
         rows = [row for row in reader]
 
-        if not self._account_importer._account.labelled:
-            for r in rows:
-                r[LABEL_HEADING] = ""
-                r[COMMENT_HEADING] = ""
-                _apply_rules(
-                    r,
-                    self._account_importer._regex_rules,
-                    True,
-                    True,
-                    self._account_importer._regexrulesfilepath,
+        try:
+            if not self._account_importer._account.labelled:
+                for r in rows:
+                    r[LABEL_HEADING] = ""
+                    r[COMMENT_HEADING] = ""
+                    _apply_rules(
+                        r,
+                        self._account_importer._regex_rules,
+                        True,
+                        True,
+                        self._account_importer._regexrulesfilepath,
+                    )
+
+                nonregex_rules = self._create_or_update_nonregex_rule_file(
+                    rows, reader.fieldnames
                 )
 
-            nonregex_rules = self._create_or_update_nonregex_rule_file(
-                rows, reader.fieldnames
-            )
+                for r in rows:
+                    _apply_rules(r, nonregex_rules, False, True, self._rulefilepath)
 
-            for r in rows:
-                _apply_rules(r, nonregex_rules, False, True, self._rulefilepath)
+        except:
+            print(f"Error when processing file {self._filepath}")
+            raise
 
         return rows
 
